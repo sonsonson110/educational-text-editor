@@ -1,0 +1,10 @@
+```
+src/
+    core/
+    document/
+    position/
+    lines/
+    editor/
+    view/
+    playground/
+```
