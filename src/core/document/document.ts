@@ -77,12 +77,22 @@ export class Document implements IDocument {
       line + 1 < totalLines
         ? this.lineIndex.getLineStart(line + 1)
         : this.getText().length;
-    // Removes the trailing newline (if present) by replacing it with an empty string
-    return this.text.slice(lineStart, nextLineStart).replace(/\n$/, "");
+
+    let text = this.text.slice(lineStart, nextLineStart);
+    if (text.endsWith("\n")) {
+      text = text.slice(0, -1);
+    }
+    return text;
   }
 
   getLineLength(line: number): number {
-    return this.getLineContent(line).length;
+    const lineStart = this.lineIndex.getLineStart(line);
+    const totalLines = this.lineIndex.getLineCount();
+    const nextLineStart =
+      line + 1 < totalLines
+        ? this.lineIndex.getLineStart(line + 1) - 1 // exclude newline character
+        : this.getText().length;
+    return nextLineStart - lineStart;
   }
 
   getTextInRange(range: Range): string {
