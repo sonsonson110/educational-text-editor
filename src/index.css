@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+:root {
+  --line-height: 20px;
+}
+
+.editor {
+  position: relative;
+  font-family: monospace;
+  line-height: var(--line-height);
+}
+
+.line {
+  height: var(--line-height);
+  white-space: pre;
+}
+
+.cursor {
+  pointer-events: none;
+}

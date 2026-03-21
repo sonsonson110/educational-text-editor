@@ -1,9 +1,10 @@
 import type { IEditorState } from "@/editor/editorState";
+import type { ViewLine } from "./types";
 
 export interface IViewModel {
   getViewportStart(): number;
   getViewportEnd(): number;
-  getVisibleLines(): string[];
+  getVisibleLines(): ViewLine[];
   isCursorVisible(): boolean;
   getCursorViewportPosition(): { line: number; column: number } | null;
   scrollDown(lines?: number): void;
@@ -38,13 +39,16 @@ export class ViewModel implements IViewModel {
     );
   }
 
-  getVisibleLines(): string[] {
-    const lines: string[] = [];
+  getVisibleLines(): ViewLine[] {
+    const lines: ViewLine[] = [];
     const start = this.getViewportStart();
     const end = this.getViewportEnd();
 
     for (let i = start; i < end; i++) {
-      lines.push(this.editor.getLineContent(i));
+      lines.push({
+        lineNumber: i,
+        content: this.editor.getLineContent(i),
+      });
     }
     return lines;
   }
