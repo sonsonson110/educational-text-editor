@@ -7,10 +7,12 @@ export function Cursor({
 }) {
   return (
     <div
-      className="cursor w-0.5 h-5 bg-black absolute"
+      className="cursor absolute"
       style={{
         top: position.line * LINE_HEIGHT,
         left: `calc(${position.column} * 1ch)`,
+        width: `calc(0.1 * 1ch)`,
+        height: LINE_HEIGHT,
       }}
     />
   );

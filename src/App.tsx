@@ -4,16 +4,39 @@ import { Cursor } from "@/editor/cursor/cursor";
 import { EditorState } from "@/editor/editorState";
 import { ViewModel } from "@/view/viewModel";
 import { EditorView } from "@/ui/EditorView";
+import React from "react";
+
+const INITIAL_TEXT = `Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+Aenean commodo ligula eget dolor.
+Aenean massa.
+Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
+Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.
+Nulla consequat massa quis enim.
+Donec pede justo, fringilla vel, aliquet nec, vulputate`;
+
+const VISIBLE_LINE_COUNT = 10;
 
 function App() {
-  const doc = new Document(
-    "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10",
-  );
-  const cursor = new Cursor(new Position(0, 1));
-  const editor = new EditorState(doc, cursor);
-  const viewModel = new ViewModel(editor, 0, 10);
+  const editorRef = React.useRef<EditorState | null>(null);
+  const viewModelRef = React.useRef<ViewModel | null>(null);
 
-  return <EditorView viewModel={viewModel} editor={editor} />;
+  if (!editorRef.current) {
+    const doc = new Document(INITIAL_TEXT);
+    const cursor = new Cursor(new Position(0, 0));
+    editorRef.current = new EditorState(doc, cursor);
+  }
+
+  if (!viewModelRef.current) {
+    viewModelRef.current = new ViewModel(
+      editorRef.current,
+      0,
+      VISIBLE_LINE_COUNT,
+    );
+  }
+
+  return (
+    <EditorView viewModel={viewModelRef.current} editor={editorRef.current} />
+  );
 }
 
 export default App;
