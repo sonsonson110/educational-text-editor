@@ -1,6 +1,5 @@
-import type { IEditorState } from "@/editor/editorState";
 import { mapKeyboardEvent } from "@/ui/inputHandler";
-import type { ViewModel } from "@/view/viewModel";
+import type { IViewModel } from "@/view/viewModel";
 import {
   useCallback,
   useEffect,
@@ -11,18 +10,17 @@ import { Cursor as CursorComponent } from "./Cursor";
 import { Line } from "./Line";
 
 interface Props {
-  viewModel: ViewModel;
-  editor: IEditorState;
+  viewModel: IViewModel;
 }
 
-export function EditorView({ viewModel, editor }: Props) {
+export function EditorView({ viewModel }: Props) {
   const [lines, setLines] = useState(viewModel.getVisibleLines());
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
 
   const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (e) => {
     const command = mapKeyboardEvent(e);
     if (command) {
-      editor.execute(command);
+      viewModel.execute(command);
       e.preventDefault();
     }
   };
@@ -35,8 +33,8 @@ export function EditorView({ viewModel, editor }: Props) {
 
   useEffect(() => {
     sync();
-    return editor.subscribe(sync);
-  }, [editor, sync]);
+    return viewModel.subscribe(sync);
+  }, [viewModel, sync]);
 
   return (
     <div

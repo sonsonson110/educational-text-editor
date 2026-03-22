@@ -24,26 +24,16 @@ Aliquam lorem ante, dapibus in, viverra quis, feugiat a,`;
 const VISIBLE_LINE_COUNT = 10;
 
 function App() {
-  const editorRef = React.useRef<EditorState | null>(null);
   const viewModelRef = React.useRef<ViewModel | null>(null);
 
-  if (!editorRef.current) {
+  if (!viewModelRef.current) {
     const doc = new Document(INITIAL_TEXT);
     const cursor = new Cursor(new Position(0, 0));
-    editorRef.current = new EditorState(doc, cursor);
+    const editorState = new EditorState(doc, cursor);
+    viewModelRef.current = new ViewModel(editorState, 0, VISIBLE_LINE_COUNT);
   }
 
-  if (!viewModelRef.current) {
-    viewModelRef.current = new ViewModel(
-      editorRef.current,
-      0,
-      VISIBLE_LINE_COUNT,
-    );
-  }
-
-  return (
-    <EditorView viewModel={viewModelRef.current} editor={editorRef.current} />
-  );
+  return <EditorView viewModel={viewModelRef.current} />;
 }
 
 export default App;

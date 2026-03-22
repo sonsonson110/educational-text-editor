@@ -1,5 +1,6 @@
 import type { IEditorState } from "@/editor/editorState";
 import type { ViewLine } from "./types";
+import type { Command } from "@/editor/commands";
 
 export interface IViewModel {
   getVisibleLines(): ViewLine[];
@@ -8,6 +9,8 @@ export interface IViewModel {
   scrollDown(lines?: number): void;
   scrollUp(lines?: number): void;
   scrollToCursor(): void;
+  subscribe(callback: () => void): () => void;
+  execute(command: Command): void;
 }
 
 export class ViewModel implements IViewModel {
@@ -92,5 +95,14 @@ export class ViewModel implements IViewModel {
     } else if (cursorPos.line >= viewportEnd) {
       this.startLine = cursorPos.line - this.visibleLineCount + 1;
     }
+  }
+
+  subscribe(callback: () => void): () => void {
+    const unsubscribe = this.editor.subscribe(callback);
+    return unsubscribe;
+  }
+
+  execute(command: Command): void {
+    this.editor.execute(command);
   }
 }
