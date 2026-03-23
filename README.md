@@ -1,5 +1,7 @@
 > More in ./docs
 
+Live demo: <https://educational-text-editor.web.app/>
+
 ---
 
 # Editor Roadmap

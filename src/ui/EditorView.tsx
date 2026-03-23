@@ -25,6 +25,47 @@ export function EditorView({ viewModel }: Props) {
   // Calculate char width once and store it, to avoid expensive calculations on every render
   const charWidthRef = useRef<number>(null);
 
+  const isDraggingRef = useRef(false);
+  const didMoveRef = useRef(false);
+
+  // ---------------------------------------------------------------------------
+  // Coordinate helper
+  // Converts a MouseEvent into a clamped document Position.
+  // ---------------------------------------------------------------------------
+
+  const resolvePosition = useCallback(
+    (clientX: number, clientY: number): Position | null => {
+      const container = containerRef.current;
+      if (!container) return null;
+
+      if (charWidthRef.current === null) {
+        charWidthRef.current = measureCharWidth(container);
+      }
+      const charWidth = charWidthRef.current;
+      const rect = container.getBoundingClientRect();
+
+      const relativeY = clientY - rect.top;
+      const clickedRelativeLine = Math.floor(relativeY / LINE_HEIGHT);
+      const absoluteLine = viewModel.getViewportStart() + clickedRelativeLine;
+      const clampedLine = Math.max(
+        0,
+        Math.min(absoluteLine, viewModel.getLineCount() - 1),
+      );
+
+      const relativeX = clientX - rect.left;
+      const clickedColumn = Math.round(relativeX / charWidth);
+      const lineLength = viewModel.getLineContent(clampedLine).length;
+      const clampedColumn = Math.max(0, Math.min(clickedColumn, lineLength));
+
+      return new Position(clampedLine, clampedColumn);
+    },
+    [viewModel],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Keyboard
+  // ---------------------------------------------------------------------------
+
   const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (e) => {
     const command = mapKeyboardEvent(e);
     if (command) {
@@ -34,46 +75,63 @@ export function EditorView({ viewModel }: Props) {
   };
 
   // ---------------------------------------------------------------------------
-  // Mouse click → cursor position
+  // Mouse drag → text selection
+  //
+  // Flow:
+  //   mousedown  — place cursor at click position (collapsed), mark drag start
+  //   mousemove  — if dragging, fire select_to so the selection extends live
+  //   mouseup    — end drag, clean up window listeners
+  //
+  // mousemove and mouseup are attached to window so the drag keeps working
+  // even when the pointer leaves the editor div.
   // ---------------------------------------------------------------------------
 
-  const handleClick: MouseEventHandler<HTMLDivElement> = (e) => {
-    const container = containerRef.current;
-    if (!container) {
+  const handleMouseDown: MouseEventHandler<HTMLDivElement> = (e) => {
+    // Only handle primary button (left click)
+    if (e.button !== 0) {
       return;
     }
 
-    const rect = container.getBoundingClientRect();
-
-    // Resolve character width once and cache it — monospace means every
-    // character has the same width, so one measurement lasts forever.
-    if (charWidthRef.current === null) {
-      charWidthRef.current = measureCharWidth(container);
+    const position = resolvePosition(e.clientX, e.clientY);
+    if (!position) {
+      return;
     }
-    const charWidth = charWidthRef.current;
 
-    // Y → absolute document line
-    const relativeY = e.clientY - rect.top;
-    const clickedRelativeLine = Math.floor(relativeY / LINE_HEIGHT);
-    const viewportStart = viewModel.getViewportStart();
-    const absoluteLine = viewportStart + clickedRelativeLine;
-    const clampedLine = Math.max(
-      0,
-      Math.min(absoluteLine, viewModel.getLineCount() - 1),
-    );
+    // Place a collapsed cursor at the click position — this becomes the anchor
+    viewModel.execute({ type: "move_cursor_to", position });
 
-    // X → column, clamped to the actual line length
-    const relativeX = e.clientX - rect.left;
-    const clickedColumn = Math.round(relativeX / charWidth);
-    const lineLength = viewModel.getLineContent(clampedLine).length;
-    const clampedColumn = Math.max(0, Math.min(clickedColumn, lineLength));
+    isDraggingRef.current = true;
+    didMoveRef.current = false;
 
-    viewModel.execute({
-      type: "move_cursor_to",
-      position: new Position(clampedLine, clampedColumn),
-    });
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current) {
+        return;
+      }
 
-    container.focus();
+      const movePosition = resolvePosition(
+        moveEvent.clientX,
+        moveEvent.clientY,
+      );
+      if (!movePosition) {
+        return;
+      }
+
+      didMoveRef.current = true;
+      viewModel.execute({ type: "select_to", position: movePosition });
+    };
+
+    const handleWindowMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+
+    containerRef.current?.focus();
+    // Prevent the browser from triggering its own text selection UI
+    e.preventDefault();
   };
 
   const sync = useCallback(() => {
@@ -93,7 +151,7 @@ export function EditorView({ viewModel }: Props) {
       className="editor border border-white"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onClick={handleClick}
+      onMouseDown={handleMouseDown}
     >
       {lines.map((line) => (
         <Line key={line.lineNumber} line={line} />
