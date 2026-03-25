@@ -8,10 +8,12 @@ import {
   type KeyboardEventHandler,
   type MouseEventHandler,
 } from "react";
-import { Cursor as CursorComponent } from "./Cursor";
-import { Line } from "./Line";
+import { Cursor as CursorComponent } from "./components/Cursor";
+import { Line } from "./components/Line";
+import { Selection } from "./components/Selection";
 import { LINE_HEIGHT } from "@/constants";
 import { Position } from "@/core/position/position";
+import { buildSelectionRects } from "@/ui/components/Selection";
 
 interface Props {
   viewModel: IViewModel;
@@ -20,6 +22,14 @@ interface Props {
 export function EditorView({ viewModel }: Props) {
   const [lines, setLines] = useState(viewModel.getVisibleLines());
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
+  const [selectionRects, setSelectionRects] = useState(
+    buildSelectionRects(
+      viewModel.getAnchorViewportPosition() ?? { line: 0, column: 0 },
+      viewModel.getCursorViewportPosition() ?? { line: 0, column: 0 },
+      (vpLine) =>
+        viewModel.getLineContent(viewModel.getViewportStart() + vpLine).length,
+    ),
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   // Calculate char width once and store it, to avoid expensive calculations on every render
@@ -36,7 +46,9 @@ export function EditorView({ viewModel }: Props) {
   const resolvePosition = useCallback(
     (clientX: number, clientY: number): Position | null => {
       const container = containerRef.current;
-      if (!container) return null;
+      if (!container) {
+        return null;
+      }
 
       if (charWidthRef.current === null) {
         charWidthRef.current = measureCharWidth(container);
@@ -136,8 +148,25 @@ export function EditorView({ viewModel }: Props) {
 
   const sync = useCallback(() => {
     viewModel.scrollToCursor();
-    setLines(viewModel.getVisibleLines());
-    setCursor(viewModel.getCursorViewportPosition());
+    const nextLines = viewModel.getVisibleLines();
+    const nextCursor = viewModel.getCursorViewportPosition();
+
+    // Build selection rects in viewport-relative coordinates
+    const anchorVp = viewModel.getAnchorViewportPosition();
+    const activeVp = nextCursor;
+    const vpStart = viewModel.getViewportStart();
+
+    const nextRects =
+      anchorVp && activeVp && !viewModel.isSelectionCollapsed()
+        ? buildSelectionRects(
+            anchorVp,
+            activeVp,
+            (vpLine) => viewModel.getLineContent(vpStart + vpLine).length,
+          )
+        : [];
+    setLines(nextLines);
+    setCursor(nextCursor);
+    setSelectionRects(nextRects);
   }, [viewModel]);
 
   useEffect(() => {
@@ -153,6 +182,8 @@ export function EditorView({ viewModel }: Props) {
       onKeyDown={handleKeyDown}
       onMouseDown={handleMouseDown}
     >
+      <Selection rects={selectionRects} />
+
       {lines.map((line) => (
         <Line key={line.lineNumber} line={line} />
       ))}

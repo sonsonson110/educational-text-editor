@@ -9,7 +9,7 @@ Live demo: <https://educational-text-editor.web.app/>
 ## Input completeness
 
 - [x] Mouse click moves cursor to clicked position
-- [ ] Mouse drag creates a text selection
+- [x] Mouse drag creates a text selection
 - [ ] Mouse wheel scrolls viewport (smooth, scaled to delta)
 - [ ] Double-click selects the word under the cursor
 - [ ] Triple-click selects the entire line

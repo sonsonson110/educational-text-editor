@@ -11,9 +11,11 @@ export interface IViewModel {
   // Visible content
   getVisibleLines(): ViewLine[];
 
-  // Cursor
+  // Cursor / selection
   isCursorVisible(): boolean;
+  isSelectionCollapsed(): boolean;
   getCursorViewportPosition(): { line: number; column: number } | null;
+  getAnchorViewportPosition(): { line: number; column: number } | null;
 
   // Scroll
   scrollDown(lines?: number): void;
@@ -84,6 +86,10 @@ export class ViewModel implements IViewModel {
     return cursorPos.line >= viewportStart && cursorPos.line < viewportEnd;
   }
 
+  isSelectionCollapsed(): boolean {
+    return this.editor.getCursor().isCollapsed();
+  }
+
   getCursorViewportPosition(): { line: number; column: number } | null {
     if (!this.isCursorVisible()) {
       return null;
@@ -92,6 +98,27 @@ export class ViewModel implements IViewModel {
     return {
       line: cursorPos.line - this.getViewportStart(),
       column: cursorPos.column,
+    };
+  }
+
+  /**
+   * Returns the anchor position in viewport-relative coordinates, or null if
+   * the anchor is scrolled out of view. When the selection is collapsed the
+   * anchor equals the active, so callers should check isSelectionCollapsed()
+   * first to avoid rendering a zero-width rect.
+   */
+  getAnchorViewportPosition(): { line: number; column: number } | null {
+    const anchor = this.editor.getCursor().anchor;
+    const vpStart = this.getViewportStart();
+    const vpEnd = this.getViewportEnd();
+
+    if (anchor.line < vpStart || anchor.line >= vpEnd) {
+      return null;
+    }
+
+    return {
+      line: anchor.line - vpStart,
+      column: anchor.column,
     };
   }
 

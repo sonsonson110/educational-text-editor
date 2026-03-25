@@ -246,6 +246,49 @@ describe("ViewModel", () => {
   });
 
   // -------------------------------------------------------------------------
+  // getAnchorViewportPosition
+  // -------------------------------------------------------------------------
+
+  describe("getAnchorViewportPosition", () => {
+    it("returns null when anchor is not visible", () => {
+      const vm = makeVM(makeStub({ lineCount: 10, cursorLine: 9 }), 0, 5);
+      expect(vm.getAnchorViewportPosition()).toBeNull();
+    });
+
+    it("returns relative line 0 when anchor is on first visible line", () => {
+      const vm = makeVM(
+        makeStub({ lineCount: 10, cursorLine: 0, cursorCol: 3 }),
+        0,
+        5,
+      );
+      const pos = vm.getAnchorViewportPosition();
+      expect(pos).not.toBeNull();
+      expect(pos!.line).toBe(0);
+      expect(pos!.column).toBe(3);
+    });
+
+    it("returns correct relative line when viewport is scrolled", () => {
+      // anchor on document line 7, viewport starts at 5 → relative line 2
+      const vm = makeVM(
+        makeStub({ lineCount: 20, cursorLine: 7, cursorCol: 4 }),
+        5,
+        5,
+      );
+      const pos = vm.getAnchorViewportPosition();
+      expect(pos).not.toBeNull();
+      expect(pos!.line).toBe(2);
+      expect(pos!.column).toBe(4);
+    });
+
+    it("returns relative line for last visible line", () => {
+      // anchor on line 4, viewport 0-4 (5 lines) → relative line 4
+      const vm = makeVM(makeStub({ lineCount: 10, cursorLine: 4 }), 0, 5);
+      const pos = vm.getAnchorViewportPosition();
+      expect(pos!.line).toBe(4);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // scrollToCursor
   // -------------------------------------------------------------------------
 
