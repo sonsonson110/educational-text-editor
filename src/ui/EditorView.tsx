@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEventHandler,
   type MouseEventHandler,
+  type WheelEventHandler,
 } from "react";
 import { Cursor as CursorComponent } from "./components/Cursor";
 import { Line } from "./components/Line";
@@ -37,6 +38,7 @@ export function EditorView({ viewModel }: Props) {
 
   const isDraggingRef = useRef(false);
   const didMoveRef = useRef(false);
+  const scrollAccumulatorRef = useRef(0);
 
   // ---------------------------------------------------------------------------
   // Coordinate helper
@@ -146,8 +148,7 @@ export function EditorView({ viewModel }: Props) {
     e.preventDefault();
   };
 
-  const sync = useCallback(() => {
-    viewModel.scrollToCursor();
+  const updateView = useCallback(() => {
     const nextLines = viewModel.getVisibleLines();
     const nextCursor = viewModel.getCursorViewportPosition();
 
@@ -169,6 +170,41 @@ export function EditorView({ viewModel }: Props) {
     setSelectionRects(nextRects);
   }, [viewModel]);
 
+  const handleWheel: WheelEventHandler<HTMLDivElement> = useCallback(
+    (e) => {
+      // Accumulate scroll delta to support smooth trackpad scrolling.
+      // We scale the divisor. A standard Linux wheel detent is ~53px,
+      // Windows is ~100px. Dividing by 50 ensures 1 Linux detent = ~1 line,
+      // which feels much nicer than jumping by Math.trunc(53/20) = 2 lines.
+      const PIXELS_PER_LINE = 50;
+      const delta = Math.abs(e.deltaY);
+      const scrollDirection = e.deltaY > 0 ? 'down' : 'up';
+      scrollAccumulatorRef.current +=
+        e.deltaMode === 1 ? delta * PIXELS_PER_LINE : delta;
+
+      // Calculate how many full lines we can scroll
+      const lines = Math.trunc(scrollAccumulatorRef.current / PIXELS_PER_LINE);
+
+      if (lines !== 0) {
+        if (scrollDirection === 'down') {
+          viewModel.scrollDown(lines);
+        } else {
+          viewModel.scrollUp(lines);
+        }
+
+        // Subtract the scrolled amount
+        scrollAccumulatorRef.current -= lines * PIXELS_PER_LINE;
+        updateView();
+      }
+    },
+    [viewModel, updateView],
+  );
+
+  const sync = useCallback(() => {
+    viewModel.scrollToCursor();
+    updateView();
+  }, [viewModel, updateView]);
+
   useEffect(() => {
     sync();
     return viewModel.subscribe(sync);
@@ -181,6 +217,7 @@ export function EditorView({ viewModel }: Props) {
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onMouseDown={handleMouseDown}
+      onWheel={handleWheel}
     >
       <Selection rects={selectionRects} />
 
