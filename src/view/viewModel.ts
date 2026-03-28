@@ -13,6 +13,13 @@ export interface IViewModel {
   getVisibleLineCount(): number;
   setVisibleLineCount(count: number): void;
 
+  // Horizontal viewport
+  getScrollX(): number;
+  getVisibleColumnCount(): number;
+  setVisibleColumnCount(count: number): void;
+  scrollLeft(cols?: number): void;
+  scrollRight(cols?: number): void;
+
   // Cursor / selection
   isCursorVisible(): boolean;
   isSelectionCollapsed(): boolean;
@@ -33,6 +40,8 @@ export class ViewModel implements IViewModel {
   private editor: IEditorState;
   private startLine: number;
   private visibleLineCount: number;
+  private scrollX: number;
+  private visibleColumnCount: number;
 
   constructor(
     editor: IEditorState,
@@ -42,6 +51,8 @@ export class ViewModel implements IViewModel {
     this.editor = editor;
     this.startLine = startLine;
     this.visibleLineCount = visibleLineCount;
+    this.scrollX = 0;
+    this.visibleColumnCount = 80; // sensible default, updated by UI
   }
 
   getLineCount(): number {
@@ -76,6 +87,32 @@ export class ViewModel implements IViewModel {
     const maxStart = Math.max(this.editor.getLineCount() - this.visibleLineCount, 0);
     this.startLine = Math.min(this.startLine, maxStart);
   }
+
+  // ---------------------------------------------------------------------------
+  // Horizontal viewport
+  // ---------------------------------------------------------------------------
+
+  getScrollX(): number {
+    return this.scrollX;
+  }
+
+  getVisibleColumnCount(): number {
+    return this.visibleColumnCount;
+  }
+
+  setVisibleColumnCount(count: number): void {
+    this.visibleColumnCount = Math.max(1, count);
+  }
+
+  scrollLeft(cols: number = 1): void {
+    this.scrollX = Math.max(this.scrollX - cols, 0);
+  }
+
+  scrollRight(cols: number = 1): void {
+    this.scrollX = this.scrollX + cols;
+  }
+
+  // ---------------------------------------------------------------------------
 
   getVisibleLines(): ViewLine[] {
     const lines: ViewLine[] = [];
@@ -136,12 +173,21 @@ export class ViewModel implements IViewModel {
     const viewportStart = this.getViewportStart();
     const viewportEnd = this.getViewportEnd();
 
+    // Vertical
     if (cursorPos.line < viewportStart) {
       this.startLine = cursorPos.line;
     } else if (cursorPos.line >= viewportEnd) {
       this.startLine = cursorPos.line - this.visibleLineCount + 1;
     }
-    // No-op when cursor is already visible
+    // No-op when cursor is already visible vertically
+
+    // Horizontal
+    if (cursorPos.column < this.scrollX) {
+      this.scrollX = cursorPos.column;
+    } else if (cursorPos.column >= this.scrollX + this.visibleColumnCount) {
+      this.scrollX = cursorPos.column - this.visibleColumnCount + 1;
+    }
+    // No-op when cursor is already visible horizontally
   }
 
   subscribe(callback: () => void): () => void {
@@ -153,3 +199,4 @@ export class ViewModel implements IViewModel {
     this.editor.execute(command);
   }
 }
+

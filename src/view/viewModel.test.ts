@@ -424,4 +424,117 @@ describe("ViewModel", () => {
       expect(vm.getVisibleLines()).toHaveLength(10);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Horizontal scrolling — getScrollX, scrollLeft, scrollRight
+  // -------------------------------------------------------------------------
+
+  describe("getScrollX", () => {
+    it("returns 0 initially", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      expect(vm.getScrollX()).toBe(0);
+    });
+  });
+
+  describe("scrollRight", () => {
+    it("increments scrollX by 1 by default", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight();
+      expect(vm.getScrollX()).toBe(1);
+    });
+
+    it("increments scrollX by the given amount", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight(5);
+      expect(vm.getScrollX()).toBe(5);
+    });
+
+    it("has no upper bound (matches VS Code behavior)", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight(10000);
+      expect(vm.getScrollX()).toBe(10000);
+    });
+  });
+
+  describe("scrollLeft", () => {
+    it("decrements scrollX by 1 by default", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight(5);
+      vm.scrollLeft();
+      expect(vm.getScrollX()).toBe(4);
+    });
+
+    it("decrements scrollX by the given amount", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight(10);
+      vm.scrollLeft(3);
+      expect(vm.getScrollX()).toBe(7);
+    });
+
+    it("clamps at 0", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.scrollRight(2);
+      vm.scrollLeft(100);
+      expect(vm.getScrollX()).toBe(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // setVisibleColumnCount / getVisibleColumnCount
+  // -------------------------------------------------------------------------
+
+  describe("setVisibleColumnCount", () => {
+    it("updates the visible column count", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.setVisibleColumnCount(120);
+      expect(vm.getVisibleColumnCount()).toBe(120);
+    });
+
+    it("clamps to at least 1", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.setVisibleColumnCount(0);
+      expect(vm.getVisibleColumnCount()).toBe(1);
+      vm.setVisibleColumnCount(-10);
+      expect(vm.getVisibleColumnCount()).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // scrollToCursor — horizontal behavior
+  // -------------------------------------------------------------------------
+
+  describe("scrollToCursor (horizontal)", () => {
+    it("is a no-op when cursor column is within visible range", () => {
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 5 }), 0, 5);
+      vm.setVisibleColumnCount(80);
+      vm.scrollToCursor();
+      expect(vm.getScrollX()).toBe(0);
+    });
+
+    it("scrolls right when cursor is past the right edge", () => {
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 90 }), 0, 5);
+      vm.setVisibleColumnCount(80);
+      vm.scrollToCursor();
+      // scrollX = 90 - 80 + 1 = 11
+      expect(vm.getScrollX()).toBe(11);
+    });
+
+    it("scrolls left when cursor is before the left edge", () => {
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 3 }), 0, 5);
+      vm.setVisibleColumnCount(80);
+      vm.scrollRight(10); // scrollX = 10
+      vm.scrollToCursor();
+      // cursor at col 3 < scrollX 10 → scrollX = 3
+      expect(vm.getScrollX()).toBe(3);
+    });
+
+    it("after scrolling, cursor column is within visible range", () => {
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 100 }), 0, 5);
+      vm.setVisibleColumnCount(40);
+      vm.scrollToCursor();
+      const scrollX = vm.getScrollX();
+      expect(100).toBeGreaterThanOrEqual(scrollX);
+      expect(100).toBeLessThan(scrollX + 40);
+    });
+  });
 });

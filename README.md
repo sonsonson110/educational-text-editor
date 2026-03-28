@@ -70,9 +70,10 @@ Live demo: <https://educational-text-editor.web.app/>
 
 ## Viewport and scroll
 
-- [ ] Viewport height derived from container size, not a hardcoded line count
-- [ ] Window resize updates `visibleLineCount` automatically
-- [ ] Scroll position preserved across edits unless cursor forces a scroll
+- [x] Viewport height derived from container size, not a hardcoded line count
+- [x] Window resize updates `visibleLineCount` automatically
+- [x] Scroll position preserved across edits unless cursor forces a scroll
+- [x] Horizontal scroll
 
 ---
 

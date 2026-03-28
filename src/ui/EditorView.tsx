@@ -24,6 +24,7 @@ export function EditorView({ viewModel }: Props) {
   const [ready, setReady] = useState(false);
   const [lines, setLines] = useState(viewModel.getVisibleLines());
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
+  const [scrollX, setScrollX] = useState(viewModel.getScrollX());
   const [selectionRects, setSelectionRects] = useState(
     buildSelectionRects(
       viewModel.getAnchorViewportPosition() ?? { line: 0, column: 0 },
@@ -41,7 +42,8 @@ export function EditorView({ viewModel }: Props) {
 
   const isDraggingRef = useRef(false);
   const didMoveRef = useRef(false);
-  const scrollAccumulatorRef = useRef(0);
+  const vScrollAccumulatorRef = useRef(0);
+  const hScrollAccumulatorRef = useRef(0);
 
   const lastMousePosRef = useRef<{ clientX: number; clientY: number } | null>(
     null,
@@ -76,7 +78,8 @@ export function EditorView({ viewModel }: Props) {
       );
 
       const relativeX = clientX - rect.left;
-      const clickedColumn = Math.round(relativeX / charWidth);
+      const clickedColumn =
+        Math.round(relativeX / charWidth) + viewModel.getScrollX();
       const lineLength = viewModel.getLineContent(clampedLine).length;
       const clampedColumn = Math.max(0, Math.min(clickedColumn, lineLength));
 
@@ -117,11 +120,12 @@ export function EditorView({ viewModel }: Props) {
 
       const rect = container.getBoundingClientRect();
       const relativeY = clientY - rect.top;
+      const relativeX = clientX - rect.left;
 
       const MARGIN = 5; // px
       let explicitScroll = false;
 
-      // Explicit scroll only when inside the container margins
+      // Vertical auto-scroll near top/bottom edges
       if (relativeY >= 0 && relativeY < MARGIN) {
         viewModel.scrollUp(1);
         explicitScroll = true;
@@ -130,8 +134,23 @@ export function EditorView({ viewModel }: Props) {
         explicitScroll = true;
       }
 
+      // Horizontal auto-scroll near left/right edges
+      if (relativeX >= 0 && relativeX < MARGIN) {
+        viewModel.scrollLeft(1);
+        explicitScroll = true;
+      } else if (relativeX <= rect.width && relativeX > rect.width - MARGIN) {
+        viewModel.scrollRight(1);
+        explicitScroll = true;
+      }
+
       // Trigger select_to if we explicitly scrolled OR if we are outside the container
-      if (explicitScroll || relativeY < 0 || relativeY > rect.height) {
+      if (
+        explicitScroll ||
+        relativeY < 0 ||
+        relativeY > rect.height ||
+        relativeX < 0 ||
+        relativeX > rect.width
+      ) {
         lastScrollTimeRef.current = time;
         const movePosition = resolvePosition(clientX, clientY);
         if (movePosition) {
@@ -255,34 +274,57 @@ export function EditorView({ viewModel }: Props) {
     setLines(nextLines);
     setCursor(nextCursor);
     setSelectionRects(nextRects);
+    setScrollX(viewModel.getScrollX());
   }, [viewModel]);
 
   const handleWheel: WheelEventHandler<HTMLDivElement> = useCallback(
     (e) => {
-      // Accumulate scroll delta to support smooth trackpad scrolling.
-      // We scale the divisor. A standard Linux wheel detent is ~53px,
-      // Windows is ~100px. Dividing by 50 ensures 1 Linux detent = ~1 line,
-      // which feels much nicer than jumping by Math.trunc(53/20) = 2 lines.
-      const PIXELS_PER_LINE = 50;
-      const delta = Math.abs(e.deltaY);
-      const scrollDirection = e.deltaY > 0 ? "down" : "up";
-      scrollAccumulatorRef.current +=
-        e.deltaMode === 1 ? delta * PIXELS_PER_LINE : delta;
+      const PIXELS_PER_UNIT = 50;
 
-      // Calculate how many full lines we can scroll
-      const lines = Math.trunc(scrollAccumulatorRef.current / PIXELS_PER_LINE);
+      // --- Vertical scrolling ---
+      // Shift+wheel redirects vertical delta to horizontal; skip vertical in that case
+      if (!e.shiftKey && e.deltaY !== 0) {
+        const deltaY = Math.abs(e.deltaY);
+        const scrollDirection = e.deltaY > 0 ? "down" : "up";
+        vScrollAccumulatorRef.current +=
+          e.deltaMode === 1 ? deltaY * PIXELS_PER_UNIT : deltaY;
 
-      if (lines !== 0) {
-        if (scrollDirection === "down") {
-          viewModel.scrollDown(lines);
-        } else {
-          viewModel.scrollUp(lines);
+        const lines = Math.trunc(
+          vScrollAccumulatorRef.current / PIXELS_PER_UNIT,
+        );
+        if (lines !== 0) {
+          if (scrollDirection === "down") {
+            viewModel.scrollDown(lines);
+          } else {
+            viewModel.scrollUp(lines);
+          }
+          vScrollAccumulatorRef.current -= lines * PIXELS_PER_UNIT;
         }
-
-        // Subtract the scrolled amount
-        scrollAccumulatorRef.current -= lines * PIXELS_PER_LINE;
-        updateView();
       }
+
+      // --- Horizontal scrolling ---
+      // Native deltaX (trackpad) or Shift+deltaY (mouse wheel)
+      const rawDeltaX = e.shiftKey ? e.deltaY : e.deltaX;
+      if (rawDeltaX !== 0) {
+        const absDeltaX = Math.abs(rawDeltaX);
+        const hDirection = rawDeltaX > 0 ? "right" : "left";
+        hScrollAccumulatorRef.current +=
+          e.deltaMode === 1 ? absDeltaX * PIXELS_PER_UNIT : absDeltaX;
+
+        const cols = Math.trunc(
+          hScrollAccumulatorRef.current / PIXELS_PER_UNIT,
+        );
+        if (cols !== 0) {
+          if (hDirection === "right") {
+            viewModel.scrollRight(cols);
+          } else {
+            viewModel.scrollLeft(cols);
+          }
+          hScrollAccumulatorRef.current -= cols * PIXELS_PER_UNIT;
+        }
+      }
+
+      updateView();
     },
     [viewModel, updateView],
   );
@@ -293,7 +335,8 @@ export function EditorView({ viewModel }: Props) {
   }, [viewModel, updateView]);
 
   // -------------------------------------------------------------------------
-  // ResizeObserver — derive visibleLineCount from actual container height
+  // ResizeObserver — derive visible line count and visible column count from
+  // actual container size
   // -------------------------------------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
@@ -301,14 +344,36 @@ export function EditorView({ viewModel }: Props) {
       return;
     }
 
+    // Measure charWidth eagerly for column count calculation
+    const contentEl = contentRef.current;
+    if (contentEl && charWidthRef.current === null) {
+      charWidthRef.current = measureCharWidth(contentEl);
+    }
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const height = entry.contentRect.height;
-        const newCount = Math.floor(height / LINE_HEIGHT);
-        if (newCount > 0 && newCount !== viewModel.getVisibleLineCount()) {
-          viewModel.setVisibleLineCount(newCount);
-          updateView();
+        const { height, width } = entry.contentRect;
+
+        // Update vertical visible line count
+        const newLineCount = Math.floor(height / LINE_HEIGHT);
+        if (
+          newLineCount > 0 &&
+          newLineCount !== viewModel.getVisibleLineCount()
+        ) {
+          viewModel.setVisibleLineCount(newLineCount);
         }
+
+        // Update horizontal visible column count
+        const charWidth = charWidthRef.current ?? 8;
+        const newColCount = Math.floor(width / charWidth);
+        if (
+          newColCount > 0 &&
+          newColCount !== viewModel.getVisibleColumnCount()
+        ) {
+          viewModel.setVisibleColumnCount(newColCount);
+        }
+
+        updateView();
       }
       // Mark ready after the first measurement
       setReady(true);
@@ -359,6 +424,9 @@ export function EditorView({ viewModel }: Props) {
         className="editor-content"
         ref={contentRef}
         onMouseDown={handleMouseDown}
+        style={{
+          transform: `translateX(calc(-${scrollX} * 1ch))`,
+        }}
       >
         <Selection rects={selectionRects} />
 
