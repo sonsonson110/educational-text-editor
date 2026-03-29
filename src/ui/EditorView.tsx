@@ -15,13 +15,14 @@ import { Selection } from "./components/Selection";
 import { LINE_HEIGHT } from "@/constants";
 import { Position } from "@/core/position/position";
 import { buildSelectionRects } from "@/ui/components/Selection";
+import { useEditorConfig } from "./EditorConfigContext";
 
 interface Props {
   viewModel: IViewModel;
 }
 
 export function EditorView({ viewModel }: Props) {
-  const [ready, setReady] = useState(false);
+  const { charWidth } = useEditorConfig();
   const [lines, setLines] = useState(viewModel.getVisibleLines());
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
   const [scrollX, setScrollX] = useState(viewModel.getScrollX());
@@ -37,8 +38,6 @@ export function EditorView({ viewModel }: Props) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // Calculate char width once and store it, to avoid expensive calculations on every render
-  const charWidthRef = useRef<number>(null);
 
   const isDraggingRef = useRef(false);
   const didMoveRef = useRef(false);
@@ -50,6 +49,10 @@ export function EditorView({ viewModel }: Props) {
   );
   const scrollRafRef = useRef<number | null>(null);
   const lastScrollTimeRef = useRef<number>(0);
+
+  const lineCount = viewModel.getLineCount();
+  const gutterDigits = Math.max(1, Math.floor(Math.log10(lineCount)) + 1);
+  const gutterWidthCh = gutterDigits + 2;
 
   // ---------------------------------------------------------------------------
   // Coordinate helper
@@ -63,10 +66,6 @@ export function EditorView({ viewModel }: Props) {
         return null;
       }
 
-      if (charWidthRef.current === null) {
-        charWidthRef.current = measureCharWidth(container);
-      }
-      const charWidth = charWidthRef.current;
       const rect = container.getBoundingClientRect();
 
       const relativeY = clientY - rect.top;
@@ -85,7 +84,7 @@ export function EditorView({ viewModel }: Props) {
 
       return new Position(clampedLine, clampedColumn);
     },
-    [viewModel],
+    [viewModel, charWidth],
   );
 
   // ---------------------------------------------------------------------------
@@ -344,15 +343,9 @@ export function EditorView({ viewModel }: Props) {
       return;
     }
 
-    // Measure charWidth eagerly for column count calculation
-    const contentEl = contentRef.current;
-    if (contentEl && charWidthRef.current === null) {
-      charWidthRef.current = measureCharWidth(contentEl);
-    }
-
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const { height, width } = entry.contentRect;
+        const { height } = entry.contentRect;
 
         // Update vertical visible line count
         const newLineCount = Math.floor(height / LINE_HEIGHT);
@@ -363,42 +356,31 @@ export function EditorView({ viewModel }: Props) {
           viewModel.setVisibleLineCount(newLineCount);
         }
 
-        // Update horizontal visible column count
-        const charWidth = charWidthRef.current ?? 8;
-        const newColCount = Math.floor(width / charWidth);
-        if (
-          newColCount > 0 &&
-          newColCount !== viewModel.getVisibleColumnCount()
-        ) {
-          viewModel.setVisibleColumnCount(newColCount);
+        // Update horizontal visible column count from the content area
+        const contentEl = contentRef.current;
+        if (contentEl) {
+          const contentWidth = contentEl.getBoundingClientRect().width;
+          const newColCount = Math.floor(contentWidth / charWidth);
+          if (
+            newColCount > 0 &&
+            newColCount !== viewModel.getVisibleColumnCount()
+          ) {
+            viewModel.setVisibleColumnCount(newColCount);
+          }
         }
 
         updateView();
       }
-      // Mark ready after the first measurement
-      setReady(true);
     });
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [viewModel, updateView]);
+  }, [viewModel, updateView, charWidth]);
 
   useEffect(() => {
     sync();
     return viewModel.subscribe(sync);
   }, [viewModel, sync]);
-
-  if (!ready) {
-    return (
-      <div ref={containerRef} className="editor">
-        <span style={{ color: "#888", padding: "0.5em" }}>Loading…</span>
-      </div>
-    );
-  }
-
-  const lineCount = viewModel.getLineCount();
-  const gutterDigits = Math.max(1, Math.floor(Math.log10(lineCount)) + 1);
-  const gutterWidthCh = gutterDigits + 2;
 
   return (
     <div
@@ -444,20 +426,4 @@ export function EditorView({ viewModel }: Props) {
       </div>
     </div>
   );
-}
-
-/**
- * Measures the pixel width of a single character in the editor's monospace
- * font using an offscreen canvas. Called once and cached.
- */
-function measureCharWidth(element: HTMLElement): number {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return 8; // safe fallback
-  }
-
-  const style = window.getComputedStyle(element);
-  ctx.font = `${style.fontSize} ${style.fontFamily}`;
-  return ctx.measureText("M").width;
 }

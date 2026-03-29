@@ -4,10 +4,11 @@ import { Cursor } from "@/editor/cursor/cursor";
 import { EditorState } from "@/editor/editorState";
 import { ViewModel } from "@/view/viewModel";
 import { EditorView } from "@/ui/EditorView";
+import { EditorSetup } from "@/ui/EditorSetup";
 import React from "react";
 import { INITIAL_TEXT } from "@/constants";
 
-function App() {
+function EditorInstance() {
   const viewModelRef = React.useRef<ViewModel | null>(null);
 
   if (!viewModelRef.current) {
@@ -19,6 +20,14 @@ function App() {
   }
 
   return <EditorView viewModel={viewModelRef.current} />;
+}
+
+function App() {
+  return (
+    <EditorSetup>
+      <EditorInstance />
+    </EditorSetup>
+  );
 }
 
 export default App;
