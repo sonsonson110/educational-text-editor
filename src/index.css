@@ -59,7 +59,6 @@ body {
 
 .editor-content {
   flex-grow: 1;
-  position: relative;
   overflow: hidden;
   z-index: 1;
 }

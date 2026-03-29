@@ -424,19 +424,23 @@ export function EditorView({ viewModel }: Props) {
         className="editor-content"
         ref={contentRef}
         onMouseDown={handleMouseDown}
-        style={{
-          transform: `translateX(calc(-${scrollX} * 1ch))`,
-        }}
       >
-        <Selection rects={selectionRects} />
+        <div
+          style={{
+            position: "relative",
+            transform: `translateX(calc(-${scrollX} * 1ch))`,
+          }}
+        >
+          <Selection rects={selectionRects} />
 
-        {lines.map((line) => (
-          <Line key={line.lineNumber} line={line} />
-        ))}
+          {lines.map((line) => (
+            <Line key={line.lineNumber} line={line} />
+          ))}
 
-        {cursor && viewModel.isCursorVisible() && (
-          <CursorComponent position={cursor} />
-        )}
+          {cursor && viewModel.isCursorVisible() && (
+            <CursorComponent position={cursor} />
+          )}
+        </div>
       </div>
     </div>
   );
