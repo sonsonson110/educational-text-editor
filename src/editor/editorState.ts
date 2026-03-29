@@ -8,6 +8,7 @@ export interface IEditorState {
   getCursor(): Cursor;
   getLineCount(): number;
   getLineContent(line: number): string;
+  getMaxLineLength(): number;
   execute(command: Command): void;
   subscribe(listener: () => void): () => void;
 }
@@ -160,6 +161,10 @@ export class EditorState implements IEditorState {
 
   getLineContent(line: number): string {
     return this.document.getLineContent(line);
+  }
+
+  getMaxLineLength(): number {
+    return this.document.getMaxLineLength();
   }
 
   execute(command: Command): void {

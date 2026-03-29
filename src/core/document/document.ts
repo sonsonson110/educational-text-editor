@@ -7,6 +7,7 @@ export interface IDocument {
   getText(): string;
   getLength(): number;
   getLineCount(): number;
+  getMaxLineLength(): number;
   insert(position: Position, text: string): void;
   delete(range: Range): void;
   replace(range: Range, newText: string): void;
@@ -37,6 +38,10 @@ export class Document implements IDocument {
 
   getLineCount(): number {
     return this.lineIndex.getLineCount();
+  }
+
+  getMaxLineLength(): number {
+    return this.lineIndex.getMaxLineLength();
   }
 
   insert(position: Position, text: string): void {

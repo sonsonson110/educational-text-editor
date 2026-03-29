@@ -3,6 +3,7 @@ import { Position } from "@/core/position/position";
 export interface ILineIndex {
   getLineCount(): number;
   getLineStart(line: number): number;
+  getMaxLineLength(): number;
   positionToOffset(position: Position): number;
   offsetToPosition(offset: number): Position;
 }
@@ -12,6 +13,7 @@ export class LineIndex implements ILineIndex {
   // lineStarts[0] = offset of first line
   // lineStarts[1] = offset of second line
   private lineStarts: number[] = [];
+  private maxLineLength: number = 0;
 
   constructor(text: string) {
     this.rebuild(text);
@@ -24,10 +26,29 @@ export class LineIndex implements ILineIndex {
         this.lineStarts.push(i + 1);
       }
     }
+
+    // Compute max line length from lineStarts
+    let max = 0;
+    for (let i = 0; i < this.lineStarts.length; i++) {
+      const start = this.lineStarts[i];
+      const end =
+        i + 1 < this.lineStarts.length
+          ? this.lineStarts[i + 1] - 1 // exclude newline
+          : text.length;
+      const len = end - start;
+      if (len > max) {
+        max = len;
+      }
+    }
+    this.maxLineLength = max;
   }
 
   getLineCount(): number {
     return this.lineStarts.length;
+  }
+
+  getMaxLineLength(): number {
+    return this.maxLineLength;
   }
 
   getLineStart(line: number): number {

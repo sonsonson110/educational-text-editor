@@ -2,6 +2,8 @@ import type { IEditorState } from "@/editor/editorState";
 import type { ViewLine } from "./types";
 import type { Command } from "@/editor/commands";
 
+const SCROLL_X_PADDING = 3;
+
 export interface IViewModel {
   // Viewport queries
   getViewportStart(): number;
@@ -15,6 +17,7 @@ export interface IViewModel {
 
   // Horizontal viewport
   getScrollX(): number;
+  getMaxLineLength(): number;
   getVisibleColumnCount(): number;
   setVisibleColumnCount(count: number): void;
   scrollLeft(cols?: number): void;
@@ -84,7 +87,10 @@ export class ViewModel implements IViewModel {
   setVisibleLineCount(count: number): void {
     this.visibleLineCount = Math.max(1, count);
     // Clamp startLine so the viewport doesn't overshoot the document end
-    const maxStart = Math.max(this.editor.getLineCount() - this.visibleLineCount, 0);
+    const maxStart = Math.max(
+      this.editor.getLineCount() - this.visibleLineCount,
+      0,
+    );
     this.startLine = Math.min(this.startLine, maxStart);
   }
 
@@ -110,11 +116,30 @@ export class ViewModel implements IViewModel {
 
   scrollRight(cols: number = 1): void {
     this.scrollX = this.scrollX + cols;
+    this.clampScrollX();
+  }
+
+  private clampScrollX(): void {
+    const maxScrollX = Math.max(
+      this.editor.getMaxLineLength() -
+        this.visibleColumnCount +
+        SCROLL_X_PADDING,
+      0,
+    );
+    this.scrollX = Math.min(this.scrollX, maxScrollX);
+    this.scrollX = Math.max(this.scrollX, 0);
+  }
+
+  getMaxLineLength(): number {
+    return this.editor.getMaxLineLength();
   }
 
   // ---------------------------------------------------------------------------
 
   getVisibleLines(): ViewLine[] {
+    // Re-clamp scrollX in case document content changed (e.g. longest line deleted)
+    this.clampScrollX();
+
     const lines: ViewLine[] = [];
     const start = this.getViewportStart();
     const end = this.getViewportEnd();
@@ -188,6 +213,8 @@ export class ViewModel implements IViewModel {
       this.scrollX = cursorPos.column - this.visibleColumnCount + 1;
     }
     // No-op when cursor is already visible horizontally
+
+    this.clampScrollX();
   }
 
   subscribe(callback: () => void): () => void {
@@ -199,4 +226,3 @@ export class ViewModel implements IViewModel {
     this.editor.execute(command);
   }
 }
-

@@ -74,6 +74,7 @@ Live demo: <https://educational-text-editor.web.app/>
 - [x] Window resize updates `visibleLineCount` automatically
 - [x] Scroll position preserved across edits unless cursor forces a scroll
 - [x] Horizontal scroll
+- [x] Clamp horizontal scroll
 
 ---
 

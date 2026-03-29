@@ -15,6 +15,7 @@ interface StubOptions {
   lineCount: number;
   cursorLine?: number;
   cursorCol?: number;
+  maxLineLength?: number;
   overrides?: Partial<IEditorState>;
 }
 
@@ -22,12 +23,14 @@ function makeStub({
   lineCount,
   cursorLine = 0,
   cursorCol = 0,
+  maxLineLength = 80,
   overrides = {},
 }: StubOptions): IEditorState {
   return {
     getCursor: () => new Cursor(p(cursorLine, cursorCol)),
     getLineCount: () => lineCount,
     getLineContent: (line: number) => `line${line}`,
+    getMaxLineLength: () => maxLineLength,
     execute: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     ...overrides,
@@ -438,34 +441,53 @@ describe("ViewModel", () => {
 
   describe("scrollRight", () => {
     it("increments scrollX by 1 by default", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5);
       vm.scrollRight();
       expect(vm.getScrollX()).toBe(1);
     });
 
     it("increments scrollX by the given amount", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5);
       vm.scrollRight(5);
       expect(vm.getScrollX()).toBe(5);
     });
 
-    it("has no upper bound (matches VS Code behavior)", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+    it("clamps at maxLineLength - visibleColumnCount + PADDING", () => {
+      // maxLineLength=50, visibleColumnCount=80(default), PADDING=3
+      // maxScrollX = max(50 - 80 + 3, 0) = 0
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 50 }), 0, 5);
+      vm.scrollRight(100);
+      expect(vm.getScrollX()).toBe(0);
+    });
+
+    it("clamps correctly when maxLineLength exceeds visibleColumnCount", () => {
+      // maxLineLength=100, visibleColumnCount=80(default), PADDING=3
+      // maxScrollX = 100 - 80 + 3 = 23
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5);
       vm.scrollRight(10000);
-      expect(vm.getScrollX()).toBe(10000);
+      expect(vm.getScrollX()).toBe(23);
+    });
+
+    it("clamps with custom visibleColumnCount", () => {
+      // maxLineLength=30, visibleColumnCount=20, PADDING=3
+      // maxScrollX = 30 - 20 + 3 = 13
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 30 }), 0, 5);
+      vm.setVisibleColumnCount(20);
+      vm.scrollRight(100);
+      expect(vm.getScrollX()).toBe(13);
     });
   });
 
   describe("scrollLeft", () => {
     it("decrements scrollX by 1 by default", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5);
       vm.scrollRight(5);
       vm.scrollLeft();
       expect(vm.getScrollX()).toBe(4);
     });
 
     it("decrements scrollX by the given amount", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5);
       vm.scrollRight(10);
       vm.scrollLeft(3);
       expect(vm.getScrollX()).toBe(7);
@@ -512,7 +534,7 @@ describe("ViewModel", () => {
     });
 
     it("scrolls right when cursor is past the right edge", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 90 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 90, maxLineLength: 200 }), 0, 5);
       vm.setVisibleColumnCount(80);
       vm.scrollToCursor();
       // scrollX = 90 - 80 + 1 = 11
@@ -529,12 +551,61 @@ describe("ViewModel", () => {
     });
 
     it("after scrolling, cursor column is within visible range", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 100 }), 0, 5);
+      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 100, maxLineLength: 200 }), 0, 5);
       vm.setVisibleColumnCount(40);
       vm.scrollToCursor();
       const scrollX = vm.getScrollX();
       expect(100).toBeGreaterThanOrEqual(scrollX);
       expect(100).toBeLessThan(scrollX + 40);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // scrollX re-clamping after document changes
+  // -------------------------------------------------------------------------
+
+  describe("scrollX re-clamping", () => {
+    it("getVisibleLines re-clamps scrollX when maxLineLength shrinks", () => {
+      let maxLen = 100;
+      const stub = makeStub({
+        lineCount: 10,
+        maxLineLength: maxLen,
+        overrides: {
+          getMaxLineLength: () => maxLen,
+        },
+      });
+      const vm = makeVM(stub, 0, 5);
+      vm.setVisibleColumnCount(80);
+      // maxScrollX = 100 - 80 + 3 = 23
+      vm.scrollRight(20); // scrollX = 20, within bounds
+      expect(vm.getScrollX()).toBe(20);
+
+      // Simulate the longest line being deleted
+      maxLen = 30;
+      // maxScrollX = max(30 - 80 + 3, 0) = 0
+      vm.getVisibleLines(); // triggers re-clamp
+      expect(vm.getScrollX()).toBe(0);
+    });
+
+    it("getVisibleLines re-clamps scrollX to new maxScrollX, not 0", () => {
+      let maxLen = 100;
+      const stub = makeStub({
+        lineCount: 10,
+        maxLineLength: maxLen,
+        overrides: {
+          getMaxLineLength: () => maxLen,
+        },
+      });
+      const vm = makeVM(stub, 0, 5);
+      vm.setVisibleColumnCount(40);
+      // maxScrollX = 100 - 40 + 3 = 63
+      vm.scrollRight(50); // scrollX = 50
+      expect(vm.getScrollX()).toBe(50);
+
+      // Shrink maxLineLength so new maxScrollX = 60 - 40 + 3 = 23
+      maxLen = 60;
+      vm.getVisibleLines();
+      expect(vm.getScrollX()).toBe(23);
     });
   });
 });

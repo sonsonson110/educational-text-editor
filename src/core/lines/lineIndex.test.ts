@@ -166,4 +166,44 @@ describe("LineIndex", () => {
       expect(back.column).toBe(original.column);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // getMaxLineLength
+  // -------------------------------------------------------------------------
+
+  describe("getMaxLineLength", () => {
+    it("returns 0 for empty string", () => {
+      const idx = new LineIndex("");
+      expect(idx.getMaxLineLength()).toBe(0);
+    });
+
+    it("returns length of a single line with no newline", () => {
+      const idx = new LineIndex("hello");
+      expect(idx.getMaxLineLength()).toBe(5);
+    });
+
+    it("returns the longest line length among multiple lines", () => {
+      const idx = new LineIndex("ab\nabcdef\ncd");
+      // lines: "ab" (2), "abcdef" (6), "cd" (2)
+      expect(idx.getMaxLineLength()).toBe(6);
+    });
+
+    it("handles trailing newline (last empty line has length 0)", () => {
+      const idx = new LineIndex("hello\n");
+      // lines: "hello" (5), "" (0)
+      expect(idx.getMaxLineLength()).toBe(5);
+    });
+
+    it("returns correct value when last line is the longest", () => {
+      const idx = new LineIndex("a\nbb\nccccc");
+      expect(idx.getMaxLineLength()).toBe(5);
+    });
+
+    it("updates after rebuild", () => {
+      const idx = new LineIndex("short");
+      expect(idx.getMaxLineLength()).toBe(5);
+      idx.rebuild("a\nvery long line here");
+      expect(idx.getMaxLineLength()).toBe(19);
+    });
+  });
 });
