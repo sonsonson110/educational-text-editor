@@ -6,4 +6,6 @@ export type Command =
   | { type: "delete_forward" }
   | { type: "move_cursor"; direction: "left" | "right" | "up" | "down" }
   | { type: "move_cursor_to"; position: Position }
-  | { type: "select_to"; position: Position };
+  | { type: "select_to"; position: Position }
+  | { type: "undo" }
+  | { type: "redo" };

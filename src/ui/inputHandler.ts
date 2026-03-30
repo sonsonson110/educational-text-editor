@@ -2,6 +2,14 @@ import type { Command } from "@/editor/commands";
 import type React from "react";
 
 export function mapKeyboardEvent(e: React.KeyboardEvent): Command | null {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    return e.shiftKey ? { type: "redo" } : { type: "undo" };
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+    return { type: "redo" };
+  }
+
   // text input
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
     return { type: "insert_text", text: e.key };

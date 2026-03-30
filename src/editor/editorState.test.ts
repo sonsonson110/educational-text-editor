@@ -299,4 +299,59 @@ describe("EditorState", () => {
       expect(b).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("undo and redo", () => {
+    it("undoes and redoes single text insertion", () => {
+      const editor = makeEditor("hello", p(0, 5));
+      editor.execute({ type: "insert_text", text: " world" });
+      expect(editor.getLineContent(0)).toBe("hello world");
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("hello");
+      expect(editor.getCursor().active.isEqual(p(0, 5))).toBe(true);
+      editor.execute({ type: "redo" });
+      expect(editor.getLineContent(0)).toBe("hello world");
+    });
+
+    it("undoes and redoes deletion", () => {
+      const editor = makeEditor("hello", p(0, 5));
+      editor.execute({ type: "delete_backward" });
+      expect(editor.getLineContent(0)).toBe("hell");
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("hello");
+      expect(editor.getCursor().active.isEqual(p(0, 5))).toBe(true);
+      editor.execute({ type: "redo" });
+      expect(editor.getLineContent(0)).toBe("hell");
+    });
+
+    it("coalesces consecutive character insertions", () => {
+      const editor = makeEditor("h", p(0, 1));
+      editor.execute({ type: "insert_text", text: "e" });
+      editor.execute({ type: "insert_text", text: "l" });
+      editor.execute({ type: "insert_text", text: "l" });
+      editor.execute({ type: "insert_text", text: "o" });
+      expect(editor.getLineContent(0)).toBe("hello");
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("h"); // Should undo "ello" in one step
+      editor.execute({ type: "redo" });
+      expect(editor.getLineContent(0)).toBe("hello");
+    });
+
+    it("does not coalesce space or newline insertions into words", () => {
+      const editor = makeEditor("h", p(0, 1));
+      editor.execute({ type: "insert_text", text: "i" });
+      editor.execute({ type: "insert_text", text: " " });
+      editor.execute({ type: "insert_text", text: "t" });
+      editor.execute({ type: "insert_text", text: "h" });
+      editor.execute({ type: "insert_text", text: "e" });
+      editor.execute({ type: "insert_text", text: "r" });
+      editor.execute({ type: "insert_text", text: "e" });
+      expect(editor.getLineContent(0)).toBe("hi there");
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("hi "); // Undoes "there"
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("hi"); // Undoes " "
+      editor.execute({ type: "undo" });
+      expect(editor.getLineContent(0)).toBe("h"); // Undoes "i"
+    });
+  });
 });

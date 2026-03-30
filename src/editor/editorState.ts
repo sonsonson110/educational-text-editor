@@ -3,6 +3,7 @@ import { Position } from "@/core/position/position";
 import type { Command } from "@/editor/commands";
 import { Cursor } from "@/editor/cursor/cursor";
 import { Range } from "@/core/position/range";
+import { HistoryManager } from "@/editor/history";
 
 export interface IEditorState {
   getCursor(): Cursor;
@@ -17,10 +18,12 @@ export class EditorState implements IEditorState {
   private document: IDocument;
   private cursor: Cursor;
   private listeners = new Set<() => void>();
+  private history: HistoryManager;
 
   constructor(doc: IDocument, cursor: Cursor) {
     this.document = doc;
     this.cursor = cursor;
+    this.history = new HistoryManager();
   }
 
   subscribe(listener: () => void): () => void {
@@ -44,20 +47,45 @@ export class EditorState implements IEditorState {
 
   private insert(text: string): void {
     const range = this.cursor.toRange();
+    const cursorBefore = this.cursor;
+    const undoText = this.document.getTextInRange(range);
+
     this.document.replace(range, text);
 
     const startOffset = this.document.getOffsetAt(range.start);
     const newOffset = startOffset + text.length;
     const newPosition = this.document.getPositionAt(newOffset);
     this.cursor = this.cursor.moveTo(newPosition);
+
+    const undoRange = new Range(range.start, newPosition);
+    this.history.push({
+      doText: text,
+      doRange: range,
+      undoText,
+      undoRange,
+      cursorBefore,
+      cursorAfter: this.cursor,
+      isCharacterInsert: text.length === 1 && !["\n", " "].includes(text),
+    });
   }
 
   private deleteBackward(): void {
     const range = this.cursor.toRange();
+    const cursorBefore = this.cursor;
 
     if (!range.isEmpty()) {
+      const undoText = this.document.getTextInRange(range);
       this.document.delete(range);
       this.cursor = this.cursor.moveTo(range.start);
+      this.history.push({
+        doText: "",
+        doRange: range,
+        undoText,
+        undoRange: new Range(range.start, range.start),
+        cursorBefore,
+        cursorAfter: this.cursor,
+        isCharacterInsert: false,
+      });
       return;
     }
     const currentCursor = this.cursor;
@@ -68,16 +96,39 @@ export class EditorState implements IEditorState {
     const prevOffset = this.document.getOffsetAt(currentCursor.active) - 1;
     const prevPosition = this.document.getPositionAt(prevOffset);
     const deleteRange = new Range(prevPosition, currentCursor.active);
+    const undoText = this.document.getTextInRange(deleteRange);
+
     this.document.delete(deleteRange);
     this.cursor = this.cursor.moveTo(prevPosition);
+
+    this.history.push({
+      doText: "",
+      doRange: deleteRange,
+      undoText,
+      undoRange: new Range(prevPosition, prevPosition),
+      cursorBefore,
+      cursorAfter: this.cursor,
+      isCharacterInsert: false,
+    });
   }
 
   private deleteForward(): void {
     const range = this.cursor.toRange();
+    const cursorBefore = this.cursor;
 
     if (!range.isEmpty()) {
+      const undoText = this.document.getTextInRange(range);
       this.document.delete(range);
       this.cursor = this.cursor.moveTo(range.start);
+      this.history.push({
+        doText: "",
+        doRange: range,
+        undoText,
+        undoRange: new Range(range.start, range.start),
+        cursorBefore,
+        cursorAfter: this.cursor,
+        isCharacterInsert: false,
+      });
       return;
     }
     const currentCursor = this.cursor;
@@ -89,8 +140,20 @@ export class EditorState implements IEditorState {
     const nextOffset = this.document.getOffsetAt(currentCursor.active) + 1;
     const nextPosition = this.document.getPositionAt(nextOffset);
     const deleteRange = new Range(currentCursor.active, nextPosition);
+    const undoText = this.document.getTextInRange(deleteRange);
+
     this.document.delete(deleteRange);
     this.cursor = this.cursor.moveTo(currentCursor.active);
+
+    this.history.push({
+      doText: "",
+      doRange: deleteRange,
+      undoText,
+      undoRange: new Range(currentCursor.active, currentCursor.active),
+      cursorBefore,
+      cursorAfter: this.cursor,
+      isCharacterInsert: false,
+    });
   }
 
   moveCursor(direction: "left" | "right" | "up" | "down"): void {
@@ -167,6 +230,22 @@ export class EditorState implements IEditorState {
     return this.document.getMaxLineLength();
   }
 
+  private undo(): void {
+    const op = this.history.undo();
+    if (op) {
+      this.document.replace(op.undoRange, op.undoText);
+      this.cursor = op.cursorBefore;
+    }
+  }
+
+  private redo(): void {
+    const op = this.history.redo();
+    if (op) {
+      this.document.replace(op.doRange, op.doText);
+      this.cursor = op.cursorAfter;
+    }
+  }
+
   execute(command: Command): void {
     switch (command.type) {
       case "insert_text":
@@ -191,6 +270,14 @@ export class EditorState implements IEditorState {
 
       case "select_to":
         this.expandSelection(command.position);
+        break;
+
+      case "undo":
+        this.undo();
+        break;
+
+      case "redo":
+        this.redo();
         break;
     }
     this.notifyListeners();
