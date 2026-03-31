@@ -1,8 +1,9 @@
 import type { IEditorState } from "@/editor/editorState";
 import type { ViewLine } from "./types";
 import type { Command } from "@/editor/commands";
+import { LINE_HEIGHT } from "@/constants";
 
-const SCROLL_X_PADDING = 3;
+const SCROLL_X_PADDING = 3; // in characters
 
 export interface IViewModel {
   // Viewport queries
@@ -12,16 +13,15 @@ export interface IViewModel {
 
   // Visible content
   getVisibleLines(): ViewLine[];
-  getVisibleLineCount(): number;
-  setVisibleLineCount(count: number): void;
+  setViewport(width: number, height: number, charWidth: number): void;
 
-  // Horizontal viewport
-  getScrollX(): number;
-  getMaxLineLength(): number;
-  getVisibleColumnCount(): number;
-  setVisibleColumnCount(count: number): void;
-  scrollLeft(cols?: number): void;
-  scrollRight(cols?: number): void;
+  // Viewport sizes and positions (in pixels)
+  getScrollTop(): number;
+  getScrollLeft(): number;
+  getViewportWidth(): number;
+  getViewportHeight(): number;
+  scrollBy(deltaX: number, deltaY: number): void;
+  setScrollPosition(left: number, top: number): void;
 
   // Cursor / selection
   isCursorVisible(): boolean;
@@ -29,9 +29,7 @@ export interface IViewModel {
   getCursorViewportPosition(): { line: number; column: number };
   getAnchorViewportPosition(): { line: number; column: number };
 
-  // Scroll
-  scrollDown(lines?: number): void;
-  scrollUp(lines?: number): void;
+  // Adjust scroll position
   scrollToCursor(): void;
 
   // Reactive bridge
@@ -41,21 +39,24 @@ export interface IViewModel {
 
 export class ViewModel implements IViewModel {
   private editor: IEditorState;
-  private startLine: number;
-  private visibleLineCount: number;
-  private scrollX: number;
-  private visibleColumnCount: number;
+  
+  // Pixel coordinates
+  private scrollTop: number;
+  private scrollLeft: number;
+  
+  private viewportWidth: number;
+  private viewportHeight: number;
+  private charWidth: number;
 
   constructor(
     editor: IEditorState,
-    startLine: number = 0,
-    visibleLineCount: number = 20,
   ) {
     this.editor = editor;
-    this.startLine = startLine;
-    this.visibleLineCount = visibleLineCount;
-    this.scrollX = 0;
-    this.visibleColumnCount = 80; // sensible default, updated by UI
+    this.scrollTop = 0;
+    this.scrollLeft = 0;
+    this.viewportWidth = 800; // sensible defaults
+    this.viewportHeight = 600;
+    this.charWidth = 8;
   }
 
   getLineCount(): number {
@@ -67,78 +68,78 @@ export class ViewModel implements IViewModel {
   }
 
   getViewportStart(): number {
-    const possibleStart = this.editor.getLineCount() - this.visibleLineCount;
-    const safePossibleStart = Math.max(possibleStart, 0);
-    return Math.min(this.startLine, safePossibleStart);
+    return Math.floor(this.scrollTop / LINE_HEIGHT);
   }
 
-  // Does not include the end line, which is exclusive
   getViewportEnd(): number {
+    // Top pixel of the line relative to viewtop:
+    // If scrollTop is 10, line 0 is -10 to 10
+    // We render lines up to the one overlapping the bottom edge.
     return Math.min(
-      this.startLine + this.visibleLineCount,
+      Math.ceil((this.scrollTop + this.viewportHeight) / LINE_HEIGHT),
       this.editor.getLineCount(),
     );
   }
 
-  getVisibleLineCount(): number {
-    return this.visibleLineCount;
-  }
-
-  setVisibleLineCount(count: number): void {
-    this.visibleLineCount = Math.max(1, count);
-    // Clamp startLine so the viewport doesn't overshoot the document end
-    const maxStart = Math.max(
-      this.editor.getLineCount() - this.visibleLineCount,
-      0,
-    );
-    this.startLine = Math.min(this.startLine, maxStart);
+  setViewport(width: number, height: number, charWidth: number): void {
+    this.viewportWidth = Math.max(1, width);
+    this.viewportHeight = Math.max(1, height);
+    this.charWidth = Math.max(1, charWidth);
+    this.clampScrollPosition();
   }
 
   // ---------------------------------------------------------------------------
-  // Horizontal viewport
+  // Viewport sizes and positions
   // ---------------------------------------------------------------------------
 
-  getScrollX(): number {
-    return this.scrollX;
+  getScrollTop(): number {
+    return this.scrollTop;
   }
 
-  getVisibleColumnCount(): number {
-    return this.visibleColumnCount;
+  getScrollLeft(): number {
+    return this.scrollLeft;
   }
 
-  setVisibleColumnCount(count: number): void {
-    this.visibleColumnCount = Math.max(1, count);
+  getViewportWidth(): number {
+    return this.viewportWidth;
   }
 
-  scrollLeft(cols: number = 1): void {
-    this.scrollX = Math.max(this.scrollX - cols, 0);
+  getViewportHeight(): number {
+    return this.viewportHeight;
   }
 
-  scrollRight(cols: number = 1): void {
-    this.scrollX = this.scrollX + cols;
-    this.clampScrollX();
+  private getScrollHeight(): number {
+    return this.editor.getLineCount() * LINE_HEIGHT;
   }
 
-  private clampScrollX(): void {
-    const maxScrollX = Math.max(
-      this.editor.getMaxLineLength() -
-        this.visibleColumnCount +
-        SCROLL_X_PADDING,
-      0,
-    );
-    this.scrollX = Math.min(this.scrollX, maxScrollX);
-    this.scrollX = Math.max(this.scrollX, 0);
+  private getScrollWidth(): number {
+    return (this.editor.getMaxLineLength() + SCROLL_X_PADDING) * this.charWidth;
   }
 
-  getMaxLineLength(): number {
-    return this.editor.getMaxLineLength();
+  scrollBy(deltaX: number, deltaY: number): void {
+    this.scrollLeft += deltaX;
+    this.scrollTop += deltaY;
+    this.clampScrollPosition();
+  }
+
+  setScrollPosition(left: number, top: number): void {
+    this.scrollLeft = left;
+    this.scrollTop = top;
+    this.clampScrollPosition();
+  }
+
+  private clampScrollPosition(): void {
+    const maxScrollTop = Math.max(this.getScrollHeight() - this.viewportHeight, 0);
+    this.scrollTop = Math.min(Math.max(this.scrollTop, 0), maxScrollTop);
+
+    const maxScrollLeft = Math.max(this.getScrollWidth() - this.viewportWidth, 0);
+    this.scrollLeft = Math.min(Math.max(this.scrollLeft, 0), maxScrollLeft);
   }
 
   // ---------------------------------------------------------------------------
 
   getVisibleLines(): ViewLine[] {
-    // Re-clamp scrollX in case document content changed (e.g. longest line deleted)
-    this.clampScrollX();
+    this.clampScrollPosition();
 
     const lines: ViewLine[] = [];
     const start = this.getViewportStart();
@@ -155,16 +156,25 @@ export class ViewModel implements IViewModel {
 
   isCursorVisible(): boolean {
     const cursorPos = this.editor.getCursor().active;
-    const viewportStart = this.getViewportStart();
-    const viewportEnd = this.getViewportEnd();
+    
+    // Convert to pixel rectangles
+    const cursorTop = cursorPos.line * LINE_HEIGHT;
+    const cursorBottom = cursorTop + LINE_HEIGHT;
+    const cursorLeft = cursorPos.column * this.charWidth;
+    
+    const isVisibleVertically =
+      cursorBottom > this.scrollTop && cursorTop < this.scrollTop + this.viewportHeight;
+    const isVisibleHorizontally =
+      cursorLeft >= this.scrollLeft && cursorLeft <= this.scrollLeft + this.viewportWidth;
 
-    return cursorPos.line >= viewportStart && cursorPos.line < viewportEnd;
+    return isVisibleVertically && isVisibleHorizontally;
   }
 
   isSelectionCollapsed(): boolean {
     return this.editor.getCursor().isCollapsed();
   }
 
+  // Returns logical coordinate bounds relative to visible start line
   getCursorViewportPosition(): { line: number; column: number } {
     const cursorPos = this.editor.getCursor().active;
     return {
@@ -183,43 +193,36 @@ export class ViewModel implements IViewModel {
     };
   }
 
-  scrollDown(lines: number = 1): void {
-    const newStart = this.editor.getLineCount() - this.visibleLineCount;
-    const safeNewStart = Math.max(newStart, 0);
-    this.startLine = Math.min(this.startLine + lines, safeNewStart);
-  }
-
-  scrollUp(lines: number = 1): void {
-    this.startLine = Math.max(this.startLine - lines, 0);
-  }
-
   scrollToCursor(): void {
     const cursorPos = this.editor.getCursor().active;
-    const viewportStart = this.getViewportStart();
-    const viewportEnd = this.getViewportEnd();
-
-    // Vertical
-    if (cursorPos.line < viewportStart) {
-      this.startLine = cursorPos.line;
-    } else if (cursorPos.line >= viewportEnd) {
-      this.startLine = cursorPos.line - this.visibleLineCount + 1;
+    
+    // Cursor pixel rect bounds
+    const cursorTop = cursorPos.line * LINE_HEIGHT;
+    const cursorBottom = cursorTop + LINE_HEIGHT;
+    
+    const cursorPxExtents = cursorPos.column * this.charWidth;
+    
+    // Vertical adjust
+    if (cursorTop < this.scrollTop) {
+      this.scrollTop = cursorTop;
+    } else if (cursorBottom > this.scrollTop + this.viewportHeight) {
+      this.scrollTop = cursorBottom - this.viewportHeight;
     }
-    // No-op when cursor is already visible vertically
 
-    // Horizontal
-    if (cursorPos.column < this.scrollX) {
-      this.scrollX = cursorPos.column;
-    } else if (cursorPos.column >= this.scrollX + this.visibleColumnCount) {
-      this.scrollX = cursorPos.column - this.visibleColumnCount + 1;
+    // Horizontal adjust
+    // Add visual padding for cursor to ensure we see slightly past it
+    const PADDING_PX = 4 * this.charWidth; 
+    if (cursorPxExtents < this.scrollLeft) {
+      this.scrollLeft = Math.max(0, cursorPxExtents - PADDING_PX);
+    } else if (cursorPxExtents > this.scrollLeft + this.viewportWidth - PADDING_PX) {
+      this.scrollLeft = cursorPxExtents - this.viewportWidth + PADDING_PX;
     }
-    // No-op when cursor is already visible horizontally
 
-    this.clampScrollX();
+    this.clampScrollPosition();
   }
 
   subscribe(callback: () => void): () => void {
-    const unsubscribe = this.editor.subscribe(callback);
-    return unsubscribe;
+    return this.editor.subscribe(callback);
   }
 
   execute(command: Command): void {
