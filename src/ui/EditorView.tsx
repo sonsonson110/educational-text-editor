@@ -12,6 +12,7 @@ import {
 import { Cursor as CursorComponent } from "./components/Cursor";
 import { Line } from "./components/Line";
 import { Selection } from "./components/Selection";
+import { Scrollbar } from "./components/Scrollbar";
 import { LINE_HEIGHT } from "@/constants";
 import { Position } from "@/core/position/position";
 import { buildSelectionRects } from "@/ui/components/Selection";
@@ -27,6 +28,9 @@ export function EditorView({ viewModel }: Props) {
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
   const [scrollTop, setScrollTop] = useState(viewModel.getScrollTop());
   const [scrollLeft, setScrollLeft] = useState(viewModel.getScrollLeft());
+  const [scrollHeight, setScrollHeight] = useState(viewModel.getScrollHeight());
+  const [viewportHeight, setViewportHeight] = useState(viewModel.getViewportHeight());
+  const [isMouseInEditor, setIsMouseInEditor] = useState(false);
   const [selectionRects, setSelectionRects] = useState(
     buildSelectionRects(
       viewModel.getAnchorViewportPosition() ?? { line: 0, column: 0 },
@@ -274,6 +278,8 @@ export function EditorView({ viewModel }: Props) {
     setSelectionRects(nextRects);
     setScrollTop(viewModel.getScrollTop());
     setScrollLeft(viewModel.getScrollLeft());
+    setScrollHeight(viewModel.getScrollHeight());
+    setViewportHeight(viewModel.getViewportHeight());
   }, [viewModel]);
 
   const handleWheel: WheelEventHandler<HTMLDivElement> = useCallback(
@@ -339,6 +345,8 @@ export function EditorView({ viewModel }: Props) {
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onWheel={handleWheel}
+      onMouseEnter={() => setIsMouseInEditor(true)}
+      onMouseLeave={() => setIsMouseInEditor(false)}
     >
       <div className="gutter" style={{ width: `${gutterWidthCh}ch` }}>
         <div style={{ transform: `translateY(-${scrollTop % LINE_HEIGHT}px)` }}>
@@ -375,6 +383,18 @@ export function EditorView({ viewModel }: Props) {
             <CursorComponent position={cursor} />
           )}
         </div>
+
+        <Scrollbar
+          orientation="vertical"
+          scrollSize={scrollHeight}
+          viewportSize={viewportHeight}
+          scrollOffset={scrollTop}
+          onScroll={(newOffset) => {
+            viewModel.setScrollPosition(viewModel.getScrollLeft(), newOffset);
+            updateView();
+          }}
+          visible={isMouseInEditor}
+        />
       </div>
     </div>
   );

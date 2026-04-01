@@ -4,6 +4,15 @@
   --line-height: 20px;
   --text-color: white;
   --background-color: black;
+
+  /* Scrollbar design tokens — change here to restyle all scrollbars */
+  --scrollbar-size: 8px;
+  --scrollbar-thumb-color: rgba(180, 180, 180, 0.35);
+  --scrollbar-thumb-hover-color: rgba(220, 220, 220, 0.65);
+  --scrollbar-thumb-active-color: rgba(255, 255, 255, 0.8);
+  --scrollbar-track-color: transparent;
+  --scrollbar-radius: 4px;
+  --scrollbar-fade-duration: 200ms;
 }
 
 html,
@@ -59,6 +68,45 @@ body {
 
 .editor-content {
   flex-grow: 1;
+  position: relative; /* so scrollbar tracks position inside it */
   overflow: hidden;
   z-index: 1;
 }
+
+/* -------------------------------------------------------------------------
+   Scrollbar — reusable; works for any container that wraps a .scrollbar-track
+   -------------------------------------------------------------------------
+   Visibility is controlled by toggling `.scrollbar-track--visible` (added
+   by the parent component when the mouse is inside the editor container).
+*/
+.scrollbar-track {
+  position: absolute;
+  background: var(--scrollbar-track-color);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity var(--scrollbar-fade-duration) ease;
+  /* Prevent scrollbar pointer events from bubbling to editor content */
+  pointer-events: none;
+  border-radius: var(--scrollbar-radius);
+}
+
+.scrollbar-track--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scrollbar-thumb {
+  border-radius: var(--scrollbar-radius);
+  background: var(--scrollbar-thumb-color);
+  transition: background 120ms ease;
+  cursor: pointer;
+}
+
+.scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-color);
+}
+
+.scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active-color);
+}
+

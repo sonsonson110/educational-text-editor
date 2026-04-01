@@ -18,6 +18,8 @@ export interface IViewModel {
   // Viewport sizes and positions (in pixels)
   getScrollTop(): number;
   getScrollLeft(): number;
+  getScrollHeight(): number;
+  getScrollWidth(): number;
   getViewportWidth(): number;
   getViewportHeight(): number;
   scrollBy(deltaX: number, deltaY: number): void;
@@ -108,11 +110,11 @@ export class ViewModel implements IViewModel {
     return this.viewportHeight;
   }
 
-  private getScrollHeight(): number {
+  getScrollHeight(): number {
     return this.editor.getLineCount() * LINE_HEIGHT;
   }
 
-  private getScrollWidth(): number {
+  getScrollWidth(): number {
     return (this.editor.getMaxLineLength() + SCROLL_X_PADDING) * this.charWidth;
   }
 
