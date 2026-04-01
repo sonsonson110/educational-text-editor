@@ -93,12 +93,14 @@ body {
   top: 0;
   right: 0;
   width: var(--scrollbar-size);
+  border-left: 1px solid #44444444;
 }
 
 .scrollbar-track--horizontal {
   bottom: 0;
   left: 0;
   height: var(--scrollbar-size);
+  border-top: 1px solid #44444444;
 }
 
 .scrollbar-track--visible {

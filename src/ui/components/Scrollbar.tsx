@@ -7,7 +7,10 @@ interface Props {
   /** Total scrollable size in px (scrollHeight or scrollWidth) */
   scrollSize: number;
   /** Visible viewport size in px (viewportHeight or viewportWidth) */
+  /** Visible viewport size in px (viewportHeight or viewportWidth) */
   viewportSize: number;
+  /** Physical length of the scrollbar track in px, if different from viewportSize */
+  trackSize?: number;
   /** Current scroll offset in px */
   scrollOffset: number;
   /** Called when the user drags the thumb to a new offset */
@@ -16,12 +19,16 @@ interface Props {
   visible: boolean;
 }
 
+/** Must match --scrollbar-size in index.css */
+export const SCROLLBAR_SIZE = 8; // px
+
 const MIN_THUMB_SIZE = 24; // px — prevents thumb from becoming a tiny dot
 
 export function Scrollbar({
   orientation,
   scrollSize,
   viewportSize,
+  trackSize,
   scrollOffset,
   onScroll,
   visible,
@@ -40,10 +47,11 @@ export function Scrollbar({
   // -------------------------------------------------------------------------
   const scrollable = Math.max(scrollSize - viewportSize, 1);
   const ratio = Math.min(viewportSize / scrollSize, 1); // 0..1
-  const trackSize = viewportSize;
-  const thumbSize = Math.max(ratio * trackSize, MIN_THUMB_SIZE);
-  const thumbTravel = trackSize - thumbSize; // how far the thumb can move
-  const thumbOffset = thumbTravel === 0 ? 0 : (scrollOffset / scrollable) * thumbTravel;
+  const actualTrackSize = trackSize ?? viewportSize;
+  const thumbSize = Math.max(ratio * actualTrackSize, MIN_THUMB_SIZE);
+  const thumbTravel = actualTrackSize - thumbSize; // how far the thumb can move
+  const thumbOffset =
+    thumbTravel === 0 ? 0 : (scrollOffset / scrollable) * thumbTravel;
 
   // -------------------------------------------------------------------------
   // Pointer drag on thumb
@@ -99,8 +107,12 @@ export function Scrollbar({
       const rect = trackRef.current.getBoundingClientRect();
       const rawPos = isVertical ? e.clientY - rect.top : e.clientX - rect.left;
       // Jump so that thumb centre aligns to click point
-      const centred = Math.max(0, Math.min(rawPos - thumbSize / 2, thumbTravel));
-      const newOffset = thumbTravel === 0 ? 0 : (centred / thumbTravel) * scrollable;
+      const centred = Math.max(
+        0,
+        Math.min(rawPos - thumbSize / 2, thumbTravel),
+      );
+      const newOffset =
+        thumbTravel === 0 ? 0 : (centred / thumbTravel) * scrollable;
       onScroll(newOffset);
     },
     [isVertical, thumbSize, thumbTravel, scrollable, onScroll],
@@ -117,10 +129,11 @@ export function Scrollbar({
   }
 
   // Only truly dynamic pixel values stay inline; axis-dependent static sides
-  // are expressed as Tailwind utilities via clsx.
+  // are expressed as CSS rules (.scrollbar-track--vertical/horizontal).
+  // The horizontal track's width is set via CSS left+right, so no inline needed.
   const trackStyle: React.CSSProperties = isVertical
     ? { height: "100%" }
-    : { width: "100%" };
+    : { width: "calc(100% - var(--scrollbar-size))" };
 
   const thumbStyle: React.CSSProperties = isVertical
     ? { top: thumbOffset, height: thumbSize }
@@ -131,7 +144,9 @@ export function Scrollbar({
       ref={trackRef}
       className={clsx(
         "scrollbar-track",
-        isVertical ? "scrollbar-track--vertical" : "scrollbar-track--horizontal",
+        isVertical
+          ? "scrollbar-track--vertical"
+          : "scrollbar-track--horizontal",
         visible && "scrollbar-track--visible",
       )}
       style={trackStyle}

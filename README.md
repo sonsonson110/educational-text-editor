@@ -76,7 +76,7 @@ Live demo: <https://educational-text-editor.web.app/>
 - [x] Horizontal scroll
 - [x] Clamp horizontal scroll
 - [x] Pixel based scrolling
-- [ ] Add vertical & horizontal scrollbar
+- [x] Add vertical & horizontal scrollbar
 
 ---
 

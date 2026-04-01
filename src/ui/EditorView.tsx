@@ -14,6 +14,7 @@ import {
   Line,
   Selection,
   Scrollbar,
+  SCROLLBAR_SIZE,
   Gutter,
   buildSelectionRects,
 } from "./components";
@@ -32,7 +33,13 @@ export function EditorView({ viewModel }: Props) {
   const [scrollTop, setScrollTop] = useState(viewModel.getScrollTop());
   const [scrollLeft, setScrollLeft] = useState(viewModel.getScrollLeft());
   const [scrollHeight, setScrollHeight] = useState(viewModel.getScrollHeight());
-  const [viewportHeight, setViewportHeight] = useState(viewModel.getViewportHeight());
+  const [scrollWidth, setScrollWidth] = useState(viewModel.getScrollWidth());
+  const [viewportHeight, setViewportHeight] = useState(
+    viewModel.getViewportHeight(),
+  );
+  const [viewportWidth, setViewportWidth] = useState(
+    viewModel.getViewportWidth(),
+  );
   const [isMouseInEditor, setIsMouseInEditor] = useState(false);
   const [selectionRects, setSelectionRects] = useState(
     buildSelectionRects(
@@ -282,7 +289,9 @@ export function EditorView({ viewModel }: Props) {
     setScrollTop(viewModel.getScrollTop());
     setScrollLeft(viewModel.getScrollLeft());
     setScrollHeight(viewModel.getScrollHeight());
+    setScrollWidth(viewModel.getScrollWidth());
     setViewportHeight(viewModel.getViewportHeight());
+    setViewportWidth(viewModel.getViewportWidth());
   }, [viewModel]);
 
   const handleWheel: WheelEventHandler<HTMLDivElement> = useCallback(
@@ -387,6 +396,19 @@ export function EditorView({ viewModel }: Props) {
           scrollOffset={scrollTop}
           onScroll={(newOffset) => {
             viewModel.setScrollPosition(viewModel.getScrollLeft(), newOffset);
+            updateView();
+          }}
+          visible={isMouseInEditor}
+        />
+
+        <Scrollbar
+          orientation="horizontal"
+          scrollSize={scrollWidth}
+          viewportSize={viewportWidth}
+          trackSize={viewportWidth - SCROLLBAR_SIZE}
+          scrollOffset={scrollLeft}
+          onScroll={(newOffset) => {
+            viewModel.setScrollPosition(newOffset, viewModel.getScrollTop());
             updateView();
           }}
           visible={isMouseInEditor}
