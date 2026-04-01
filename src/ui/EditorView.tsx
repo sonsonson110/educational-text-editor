@@ -9,13 +9,16 @@ import {
   type MouseEventHandler,
   type WheelEventHandler,
 } from "react";
-import { Cursor as CursorComponent } from "./components/Cursor";
-import { Line } from "./components/Line";
-import { Selection } from "./components/Selection";
-import { Scrollbar } from "./components/Scrollbar";
+import {
+  Cursor as CursorComponent,
+  Line,
+  Selection,
+  Scrollbar,
+  Gutter,
+  buildSelectionRects,
+} from "./components";
 import { LINE_HEIGHT } from "@/constants";
 import { Position } from "@/core/position/position";
-import { buildSelectionRects } from "@/ui/components/Selection";
 import { useEditorConfig } from "./EditorConfigContext";
 
 interface Props {
@@ -348,19 +351,12 @@ export function EditorView({ viewModel }: Props) {
       onMouseEnter={() => setIsMouseInEditor(true)}
       onMouseLeave={() => setIsMouseInEditor(false)}
     >
-      <div className="gutter" style={{ width: `${gutterWidthCh}ch` }}>
-        <div style={{ transform: `translateY(-${scrollTop % LINE_HEIGHT}px)` }}>
-          {lines.map((line) => (
-            <div
-              key={line.lineNumber}
-              className="gutter-line"
-              onMouseDown={(e) => handleLineNumberMouseDown(e, line.lineNumber)}
-            >
-              {line.lineNumber + 1}
-            </div>
-          ))}
-        </div>
-      </div>
+      <Gutter
+        lines={lines}
+        scrollTop={scrollTop}
+        width={`${gutterWidthCh}ch`}
+        onLineNumberMouseDown={handleLineNumberMouseDown}
+      />
 
       <div
         className="editor-content"
