@@ -6,7 +6,7 @@
   --background-color: black;
 
   /* Scrollbar design tokens — change here to restyle all scrollbars */
-  --scrollbar-size: 8px;
+  --scrollbar-size: 15px;
   --scrollbar-thumb-color: rgba(180, 180, 180, 0.35);
   --scrollbar-thumb-hover-color: rgba(220, 220, 220, 0.65);
   --scrollbar-thumb-active-color: rgba(255, 255, 255, 0.8);

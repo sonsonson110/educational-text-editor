@@ -20,7 +20,7 @@ interface Props {
 }
 
 /** Must match --scrollbar-size in index.css */
-export const SCROLLBAR_SIZE = 8; // px
+export const SCROLLBAR_SIZE = 15; // px
 
 const MIN_THUMB_SIZE = 24; // px — prevents thumb from becoming a tiny dot
 

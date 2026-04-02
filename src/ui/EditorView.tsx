@@ -296,7 +296,7 @@ export function EditorView({ viewModel }: Props) {
 
   const handleWheel: WheelEventHandler<HTMLDivElement> = useCallback(
     (e) => {
-      const PIXELS_PER_UNIT = LINE_HEIGHT;
+      const PIXELS_PER_UNIT = LINE_HEIGHT / 2;
 
       // Handle shift+wheel for horizontal scroll
       const rawDeltaY = e.shiftKey ? 0 : e.deltaY;
