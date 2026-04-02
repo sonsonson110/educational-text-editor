@@ -11,8 +11,8 @@ Live demo: <https://educational-text-editor.web.app/>
 - [x] Mouse click moves cursor to clicked position
 - [x] Mouse drag creates a text selection
 - [x] Mouse wheel scrolls viewport (smooth, scaled to delta)
-- [ ] Double-click selects the word under the cursor
-- [ ] Triple-click selects the entire line
+- [x] Double-click selects the word under the cursor
+- [x] Triple-click selects the entire line
 - [ ] Shift + click extends the selection from the current anchor
 - [ ] Shift + arrow keys extend the selection
 - [ ] Ctrl/Cmd + A selects all text

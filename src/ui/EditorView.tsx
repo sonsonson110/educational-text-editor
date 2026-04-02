@@ -1,4 +1,3 @@
-import { mapKeyboardEvent } from "@/ui/inputHandler";
 import type { IViewModel } from "@/view/viewModel";
 import {
   useCallback,
@@ -16,8 +15,8 @@ import {
   Scrollbar,
   SCROLLBAR_SIZE,
   Gutter,
-  buildSelectionRects,
 } from "./components";
+import { getWordSelection, mapKeyboardEvent, buildSelectionRects } from "./utils";
 import { LINE_HEIGHT } from "@/constants";
 import { Position } from "@/core/position/position";
 import { useEditorConfig } from "./EditorConfigContext";
@@ -192,6 +191,35 @@ export function EditorView({ viewModel }: Props) {
 
     const position = resolvePosition(e.clientX, e.clientY);
     if (!position) {
+      return;
+    }
+
+    if (e.detail === 3) {
+      const lineLength = viewModel.getLineContent(position.line).length;
+      viewModel.execute({
+        type: "move_cursor_to",
+        position: new Position(position.line, 0),
+      });
+      viewModel.execute({
+        type: "select_to",
+        position: new Position(position.line, lineLength),
+      });
+      e.preventDefault();
+      return;
+    }
+
+    if (e.detail === 2) {
+      const lineContent = viewModel.getLineContent(position.line);
+      const { start, end } = getWordSelection(lineContent, position.column);
+      viewModel.execute({
+        type: "move_cursor_to",
+        position: new Position(position.line, start),
+      });
+      viewModel.execute({
+        type: "select_to",
+        position: new Position(position.line, end),
+      });
+      e.preventDefault();
       return;
     }
 
@@ -417,3 +445,4 @@ export function EditorView({ viewModel }: Props) {
     </div>
   );
 }
+
