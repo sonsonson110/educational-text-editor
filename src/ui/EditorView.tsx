@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function EditorView({ viewModel }: Props) {
-  const { charWidth } = useEditorConfig();
+  const { charWidth, tabSize } = useEditorConfig();
   const [lines, setLines] = useState(viewModel.getVisibleLines());
   const [cursor, setCursor] = useState(viewModel.getCursorViewportPosition());
   const [scrollTop, setScrollTop] = useState(viewModel.getScrollTop());
@@ -135,7 +135,7 @@ export function EditorView({ viewModel }: Props) {
       }
     }
 
-    const command = mapKeyboardEvent(e);
+    const command = mapKeyboardEvent(e, { tabSize });
     if (command) {
       viewModel.execute(command);
       e.preventDefault();

@@ -1,7 +1,14 @@
 import type { Command } from "@/editor/commands";
 import type React from "react";
 
-export function mapKeyboardEvent(e: React.KeyboardEvent): Command | null {
+export interface KeyboardConfig {
+  tabSize: number;
+}
+
+export function mapKeyboardEvent(
+  e: React.KeyboardEvent,
+  config: KeyboardConfig = { tabSize: 2 }
+): Command | null {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
     return e.shiftKey ? { type: "redo" } : { type: "undo" };
   }
@@ -32,6 +39,9 @@ export function mapKeyboardEvent(e: React.KeyboardEvent): Command | null {
   switch (e.key) {
     case "Enter":
       return { type: "insert_text", text: "\n" };
+
+    case "Tab":
+      return { type: "insert_text", text: " ".repeat(config.tabSize) };
 
     case "Backspace":
       return {
@@ -96,7 +106,7 @@ export interface SelectionRect {
 export function buildSelectionRects(
   anchor: { line: number; column: number },
   active: { line: number; column: number },
-  getLineLength: (viewportLine: number) => number,
+  getLineLength: (viewportLine: number) => number,  
   visibleLineCount: number,
 ): SelectionRect[] {
   // Normalise so startPos is always the earlier position

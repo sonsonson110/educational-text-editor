@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 
 export interface IEditorConfig {
   charWidth: number;
+  tabSize: number;
 }
 
 export const EditorConfigContext = createContext<IEditorConfig | null>(null);

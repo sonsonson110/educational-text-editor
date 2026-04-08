@@ -3,9 +3,10 @@ import { EditorConfigContext } from "./EditorConfigContext";
 
 interface Props {
   children: ReactNode;
+  tabSize?: number;
 }
 
-export function EditorSetup({ children }: Props) {
+export function EditorSetup({ children, tabSize = 2 }: Props) {
   const [charWidth, setCharWidth] = useState<number | null>(null);
   const measureRef = useRef<HTMLSpanElement>(null);
 
@@ -37,7 +38,7 @@ export function EditorSetup({ children }: Props) {
   }
 
   return (
-    <EditorConfigContext.Provider value={{ charWidth }}>
+    <EditorConfigContext.Provider value={{ charWidth, tabSize }}>
       {children}
     </EditorConfigContext.Provider>
   );
