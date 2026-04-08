@@ -41,9 +41,14 @@ body {
   white-space: pre;
 }
 
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
 .cursor {
   pointer-events: none;
   background-color: var(--text-color);
+  animation: blink 1s step-end infinite;
 }
 
 .gutter {

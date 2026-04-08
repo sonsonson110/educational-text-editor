@@ -35,11 +35,11 @@ Live demo: <https://educational-text-editor.web.app/>
 
 ## Undo / Redo
 
-- [ ] Each command pushed onto a history stack as a reversible entry
-- [ ] Ctrl/Cmd + Z undoes the last command
-- [ ] Ctrl/Cmd + Shift + Z (or Ctrl + Y) redoes
-- [ ] Undo/redo history cleared on document reset
-- [ ] Consecutive character inserts collapsed into a single undo step
+- [x] Each command pushed onto a history stack as a reversible entry
+- [x] Ctrl/Cmd + Z undoes the last command
+- [x] Ctrl/Cmd + Shift + Z (or Ctrl + Y) redoes
+- [x] Undo/redo history cleared on document reset
+- [x] Consecutive character inserts collapsed into a single undo step
 
 ---
 
@@ -94,7 +94,7 @@ Live demo: <https://educational-text-editor.web.app/>
 
 ## Polish
 
-- [ ] Cursor blink animation
+- [x] Cursor blink animation
 - [ ] Selection rendered as a highlight layer behind text
 - [ ] Scroll-follow cursor respects a small deadzone (does not re-centre on every keystroke)
 - [ ] Tab key inserts configurable spaces (default 2)
