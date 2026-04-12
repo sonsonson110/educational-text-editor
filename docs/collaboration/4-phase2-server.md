@@ -13,13 +13,14 @@ After this phase, opening two browser tabs will show the same document, and typi
 ```
 ┌──────────┐     WebSocket      ┌──────────────────┐     WebSocket      ┌──────────┐
 │ Client A │ ◄────────────────► │  y-websocket     │ ◄────────────────► │ Client B │
-│          │                    │  Server           │                    │          │
+│          │                    │  Server          │                    │          │
 │ Y.Doc    │                    │  (room: "doc-1") │                    │ Y.Doc    │
 │ Y.Text   │                    │                  │                    │ Y.Text   │
 └──────────┘                    └──────────────────┘                    └──────────┘
 ```
 
 The server does **not** understand document content. It simply:
+
 1. Receives Yjs binary updates from clients
 2. Broadcasts them to all other clients in the same "room"
 3. Optionally persists the document state
@@ -72,6 +73,7 @@ console.log(`y-websocket server running on ws://localhost:${PORT}`);
 ```
 
 That's the entire server. `y-websocket` handles:
+
 - Document state synchronization
 - Client join/leave
 - Awareness protocol (used later for cursors)
@@ -130,6 +132,7 @@ const ytext = ydoc.getText('content');
 ```
 
 When the provider connects:
+
 1. It sends the local `Y.Doc` state to the server
 2. The server responds with any state from other clients
 3. Both sides merge automatically (CRDT guarantees convergence)
@@ -268,12 +271,14 @@ This is efficient — reconnecting after being offline only transfers the change
 During development, run both processes:
 
 **Terminal 1 — Server:**
+
 ```bash
 cd server
 npm run dev
 ```
 
 **Terminal 2 — Client:**
+
 ```bash
 npm run dev
 ```
