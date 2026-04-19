@@ -38,6 +38,8 @@ trigger: always_on
 
 - **No non-null assertions (`!`) unless guarded by a comment** explaining why the value is guaranteed to exist.
 
+- **No inline `if` statements.** Always use block braces for `if` bodies, even for single-line early returns. `if (!x) return;` is not permitted — write `if (!x) { return; }` instead.
+
 # Styling (React / UI)
 
 - **Use Tailwind CSS for static, structural styling.** Layout, spacing, typography, and colours that don't depend on runtime values go into Tailwind utility classes.
