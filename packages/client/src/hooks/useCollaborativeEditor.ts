@@ -8,7 +8,7 @@ import { Cursor } from "@/editor/cursor/cursor";
 import { EditorState } from "@/editor/editorState";
 import { ViewModel } from "@/view/viewModel";
 import {
-  createThrottledBroadcastCursor,
+  broadcastCursor,
   type ConnectedUser,
   type RemoteCursorAbsolute,
 } from "@/collaboration/awareness";
@@ -20,8 +20,14 @@ const ROOM_NAME = import.meta.env.VITE_ROOM_NAME as string;
 
 /** Palette used to assign each remote collaborator a distinct cursor color. */
 const REMOTE_CURSOR_COLORS = [
-  '#e03131', '#2f9e44', '#1971c2', '#e8590c',
-  '#9c36b5', '#0c8599', '#d6336c', '#5c7cfa',
+  "#e03131",
+  "#2f9e44",
+  "#1971c2",
+  "#e8590c",
+  "#9c36b5",
+  "#0c8599",
+  "#d6336c",
+  "#5c7cfa",
 ];
 
 /**
@@ -47,8 +53,11 @@ export function useCollaborativeEditor() {
 
     // Assign a random identity so other clients can label this user's cursor.
     const name = `User ${Math.floor(Math.random() * 1000)}`;
-    const color = REMOTE_CURSOR_COLORS[Math.floor(Math.random() * REMOTE_CURSOR_COLORS.length)];
-    awareness.setLocalStateField('user', { name, color });
+    const color =
+      REMOTE_CURSOR_COLORS[
+        Math.floor(Math.random() * REMOTE_CURSOR_COLORS.length)
+      ];
+    awareness.setLocalStateField("user", { name, color });
 
     const doc = new CollaborativeDocument(ytext);
 
@@ -56,13 +65,15 @@ export function useCollaborativeEditor() {
      * Derive the connected-user list and remote cursor positions from the
      * awareness states. Called on every awareness `change` event.
      */
-    awareness.on('change', () => {
+    awareness.on("change", () => {
       const states = awareness.getStates();
       const cursors: RemoteCursorAbsolute[] = [];
       const connectedUsers: ConnectedUser[] = [];
 
       states.forEach((state: Record<string, unknown>, clientID: number) => {
-        const userInfo = state.user as { name: string; color: string } | undefined;
+        const userInfo = state.user as
+          | { name: string; color: string }
+          | undefined;
         if (!userInfo) return;
 
         connectedUsers.push({
@@ -74,14 +85,23 @@ export function useCollaborativeEditor() {
 
         if (clientID === ydoc.clientID) return;
 
-        const cursorState = state.cursor as {
-          anchor: Y.RelativePosition;
-          head: Y.RelativePosition;
-        } | null | undefined;
+        const cursorState = state.cursor as
+          | {
+              anchor: Y.RelativePosition;
+              head: Y.RelativePosition;
+            }
+          | null
+          | undefined;
 
         if (cursorState) {
-          const anchorAbs = Y.createAbsolutePositionFromRelativePosition(cursorState.anchor, ydoc);
-          const headAbs = Y.createAbsolutePositionFromRelativePosition(cursorState.head, ydoc);
+          const anchorAbs = Y.createAbsolutePositionFromRelativePosition(
+            cursorState.anchor,
+            ydoc,
+          );
+          const headAbs = Y.createAbsolutePositionFromRelativePosition(
+            cursorState.head,
+            ydoc,
+          );
 
           if (anchorAbs && headAbs) {
             cursors.push({
@@ -115,12 +135,16 @@ export function useCollaborativeEditor() {
     const undoManager = new YjsUndoManager(ytext);
     const editorState = new EditorState(doc, cursor, undoManager, ydoc, ytext);
 
-    // Broadcast local cursor position to peers after every state change,
-    // throttled to ~50ms to reduce network traffic during rapid typing.
-    const throttledBroadcast = createThrottledBroadcastCursor(awareness, ytext, doc);
+    // Broadcast local cursor position to peers after every state change.
     editorState.subscribe(() => {
       const activeCursor = editorState.getCursor();
-      throttledBroadcast(activeCursor.anchor, activeCursor.active);
+      broadcastCursor(
+        awareness,
+        ytext,
+        doc,
+        activeCursor.anchor,
+        activeCursor.active,
+      );
     });
 
     const vm = new ViewModel(editorState);

@@ -75,35 +75,3 @@ export function broadcastCursor(
     });
 }
 
-/** Minimum interval (ms) between consecutive awareness broadcasts. */
-const BROADCAST_THROTTLE_MS = 50;
-
-/**
- * Throttled version of {@link broadcastCursor}.
- *
- * During rapid typing the local cursor changes on every keypress. This wrapper
- * limits awareness network traffic to at most one broadcast per
- * {@link BROADCAST_THROTTLE_MS} milliseconds, sending the latest position when
- * the timer fires.
- */
-export function createThrottledBroadcastCursor(
-  awareness: unknown,
-  ytext: Y.Text,
-  document: IDocument,
-): (anchorPos: Position, headPos: Position) => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending: { anchorPos: Position; headPos: Position } | null = null;
-
-  return (anchorPos: Position, headPos: Position) => {
-    pending = { anchorPos, headPos };
-    if (timer) return;
-
-    timer = setTimeout(() => {
-      timer = null;
-      if (pending) {
-        broadcastCursor(awareness, ytext, document, pending.anchorPos, pending.headPos);
-        pending = null;
-      }
-    }, BROADCAST_THROTTLE_MS);
-  };
-}
