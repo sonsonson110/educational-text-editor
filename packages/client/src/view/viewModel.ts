@@ -2,8 +2,11 @@ import type { IEditorState } from "@/editor/editorState";
 import type { ViewLine } from "./types";
 import type { Command } from "@/editor/commands";
 import { LINE_HEIGHT } from "@/constants";
+import type { RemoteCursorAbsolute, RemoteCursorView } from "@/collaboration/awareness";
+import { Position } from "@/core/position/position";
 
-const SCROLL_X_PADDING = 3; // in characters
+/** Extra horizontal padding (in characters) beyond the longest line when computing scroll width. */
+const SCROLL_X_PADDING = 3;
 
 export interface IViewModel {
   // Viewport queries
@@ -32,6 +35,10 @@ export interface IViewModel {
   getAnchorViewportPosition(): { line: number; column: number };
   getSelectedText(): string;
 
+  // Remote cursors
+  setRemoteCursors(cursors: RemoteCursorAbsolute[]): void;
+  getRemoteCursorsViewportPositions(): RemoteCursorView[];
+
   // Adjust scroll position
   scrollToCursor(): void;
 
@@ -50,6 +57,9 @@ export class ViewModel implements IViewModel {
   private viewportWidth: number;
   private viewportHeight: number;
   private charWidth: number;
+
+  /** Cursor positions of all connected remote peers, in absolute document coordinates. */
+  private remoteCursors: RemoteCursorAbsolute[] = [];
 
   constructor(
     editor: IEditorState,
@@ -198,6 +208,21 @@ export class ViewModel implements IViewModel {
       line: anchor.line - vpStart,
       column: anchor.column,
     };
+  }
+
+  /** Replace the stored set of remote cursors (called from the awareness listener). */
+  setRemoteCursors(cursors: RemoteCursorAbsolute[]): void {
+    this.remoteCursors = cursors;
+  }
+
+  /** Convert stored remote cursors to viewport-relative positions for rendering. */
+  getRemoteCursorsViewportPositions(): RemoteCursorView[] {
+    const vpStart = this.getViewportStart();
+    return this.remoteCursors.map(c => ({
+      ...c,
+      anchor: new Position(c.anchor.line - vpStart, c.anchor.column),
+      head: new Position(c.head.line - vpStart, c.head.column),
+    }));
   }
 
   scrollToCursor(): void {

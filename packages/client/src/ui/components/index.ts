@@ -5,3 +5,4 @@ export { Selection } from "./Selection";
 export { Gutter } from "./Gutter";
 export { ConnectionIndicator } from "./ConnectionIndicator";
 export type { ConnectionStatus } from "./ConnectionIndicator";
+export { RemoteCursor } from "./RemoteCursor";

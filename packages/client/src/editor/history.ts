@@ -11,7 +11,18 @@ export interface EditOperation {
   isCharacterInsert: boolean;
 }
 
-export class HistoryManager {
+/**
+ * Abstraction over undo/redo so `EditorState` can work with either the
+ * local `HistoryManager` (solo mode) or `YjsUndoManager` (collaborative mode).
+ */
+export interface IUndoRedoManager {
+  undo(): EditOperation | null | void;
+  redo(): EditOperation | null | void;
+  clear(): void;
+  push(op: EditOperation): void;
+}
+
+export class HistoryManager implements IUndoRedoManager {
   private undoStack: EditOperation[] = [];
   private redoStack: EditOperation[] = [];
 

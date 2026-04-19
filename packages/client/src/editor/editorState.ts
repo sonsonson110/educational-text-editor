@@ -4,7 +4,8 @@ import { getWordLeftOffset, getWordRightOffset } from "@/core/utils";
 import type { Command, CursorDirection } from "@/editor/commands";
 import { Cursor } from "@/editor/cursor/cursor";
 import { Range } from "@/core/position/range";
-import { HistoryManager } from "@/editor/history";
+import { HistoryManager, type IUndoRedoManager } from "@/editor/history";
+import * as Y from "yjs";
 
 export interface IEditorState {
   getCursor(): Cursor;
@@ -20,18 +21,67 @@ export class EditorState implements IEditorState {
   private document: IDocument;
   private cursor: Cursor;
   private listeners = new Set<() => void>();
-  private history: HistoryManager;
+  private history: IUndoRedoManager;
+  private ydoc?: Y.Doc;
+  private ytext?: Y.Text;
+  private relativeAnchor: Y.RelativePosition | null = null;
+  private relativeHead: Y.RelativePosition | null = null;
 
-  constructor(doc: IDocument, cursor: Cursor) {
+  constructor(
+    doc: IDocument, 
+    cursor: Cursor, 
+    history?: IUndoRedoManager,
+    ydoc?: Y.Doc,
+    ytext?: Y.Text
+  ) {
     this.document = doc;
     this.cursor = cursor;
-    this.history = new HistoryManager();
+    this.history = history ?? new HistoryManager();
+    this.ydoc = ydoc;
+    this.ytext = ytext;
 
     // If the document supports remote-change notifications (i.e. it is a
     // CollaborativeDocument), forward those notifications through our own
     // listener pipeline so the UI re-renders on remote edits.
     if (doc.subscribe) {
-      doc.subscribe(() => this.notifyListeners());
+      doc.subscribe(() => {
+        this.restoreCursorFromRelative();
+        this.notifyListeners();
+      });
+    }
+  }
+
+  /**
+   * Snapshot the current cursor as Yjs relative positions.
+   *
+   * Called after every local command so that, when a remote edit arrives,
+   * we can resolve these positions back to absolute indexes and keep the
+   * cursor in the "same" logical place.
+   */
+  private updateRelativeCursor(): void {
+    if (!this.ytext) return;
+    const anchorOffset = this.document.getOffsetAt(this.cursor.anchor);
+    const headOffset = this.document.getOffsetAt(this.cursor.active);
+    this.relativeAnchor = Y.createRelativePositionFromTypeIndex(this.ytext, anchorOffset);
+    this.relativeHead = Y.createRelativePositionFromTypeIndex(this.ytext, headOffset);
+  }
+
+  /**
+   * Resolve the stored relative positions back to absolute after a remote edit.
+   *
+   * This prevents the local cursor from jumping when another user inserts or
+   * deletes text before the cursor position.
+   */
+  private restoreCursorFromRelative(): void {
+    if (this.ydoc && this.relativeAnchor && this.relativeHead) {
+      const newAnchorAbs = Y.createAbsolutePositionFromRelativePosition(this.relativeAnchor, this.ydoc);
+      const newHeadAbs = Y.createAbsolutePositionFromRelativePosition(this.relativeHead, this.ydoc);
+      
+      if (newAnchorAbs && newHeadAbs) {
+        const newAnchorPos = this.document.getPositionAt(newAnchorAbs.index);
+        const newHeadPos = this.document.getPositionAt(newHeadAbs.index);
+        this.cursor = new Cursor(newAnchorPos, newHeadPos);
+      }
     }
   }
 
@@ -299,18 +349,18 @@ export class EditorState implements IEditorState {
   }
 
   private undo(): void {
-    const op = this.history.undo();
-    if (op) {
-      this.document.replace(op.undoRange, op.undoText);
-      this.cursor = op.cursorBefore;
+    const result = this.history.undo();
+    if (result && "cursorBefore" in result) {
+      this.document.replace(result.undoRange, result.undoText);
+      this.cursor = result.cursorBefore;
     }
   }
 
   private redo(): void {
-    const op = this.history.redo();
-    if (op) {
-      this.document.replace(op.doRange, op.doText);
-      this.cursor = op.cursorAfter;
+    const result = this.history.redo();
+    if (result && "cursorAfter" in result) {
+      this.document.replace(result.doRange, result.doText);
+      this.cursor = result.cursorAfter;
     }
   }
 
@@ -352,6 +402,7 @@ export class EditorState implements IEditorState {
         this.redo();
         break;
     }
+    this.updateRelativeCursor();
     this.notifyListeners();
   }
 }

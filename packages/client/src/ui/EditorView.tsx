@@ -15,6 +15,7 @@ import {
   Scrollbar,
   SCROLLBAR_SIZE,
   Gutter,
+  RemoteCursor,
 } from "./components";
 import { getWordSelection, mapKeyboardEvent, buildSelectionRects } from "./utils";
 import { LINE_HEIGHT } from "@/constants";
@@ -445,6 +446,10 @@ export function EditorView({ viewModel }: Props) {
 
           {lines.map((line) => (
             <Line key={line.lineNumber} line={line} />
+          ))}
+
+          {viewModel.getRemoteCursorsViewportPositions().map((rc) => (
+            <RemoteCursor key={rc.clientID} remoteCursor={rc} />
           ))}
 
           {cursor && viewModel.isCursorVisible() && (
