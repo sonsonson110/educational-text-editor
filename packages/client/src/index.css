@@ -28,7 +28,7 @@ body {
   font-family: monospace;
   color: var(--text-color);
   line-height: var(--line-height);
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -126,4 +126,18 @@ body {
 
 .scrollbar-thumb:active {
   background: var(--scrollbar-thumb-active-color);
+}
+
+/* -------------------------------------------------------------------------
+   Remote cursors & selections
+   -------------------------------------------------------------------------
+   Smooth position transitions when a remote cursor moves between cells.
+   Label opacity fades are driven by React state + this CSS transition.
+*/
+.remote-cursor-label {
+  transition: opacity 0.3s ease;
+}
+
+.remote-selection {
+  transition: left 0.1s ease-out, top 0.1s ease-out, width 0.1s ease-out;
 }

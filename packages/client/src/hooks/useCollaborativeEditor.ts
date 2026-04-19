@@ -7,7 +7,11 @@ import { Position } from "@/core/position/position";
 import { Cursor } from "@/editor/cursor/cursor";
 import { EditorState } from "@/editor/editorState";
 import { ViewModel } from "@/view/viewModel";
-import { broadcastCursor, type RemoteCursorAbsolute } from "@/collaboration/awareness";
+import {
+  createThrottledBroadcastCursor,
+  type ConnectedUser,
+  type RemoteCursorAbsolute,
+} from "@/collaboration/awareness";
 import { YjsUndoManager } from "@/collaboration/yjsUndoManager";
 import type { ConnectionStatus } from "@/ui/components";
 
@@ -16,8 +20,8 @@ const ROOM_NAME = import.meta.env.VITE_ROOM_NAME as string;
 
 /** Palette used to assign each remote collaborator a distinct cursor color. */
 const REMOTE_CURSOR_COLORS = [
-  '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4',
-  '#ffeaa7', '#dfe6e9', '#fd79a8', '#6c5ce7',
+  '#e03131', '#2f9e44', '#1971c2', '#e8590c',
+  '#9c36b5', '#0c8599', '#d6336c', '#5c7cfa',
 ];
 
 /**
@@ -26,12 +30,13 @@ const REMOTE_CURSOR_COLORS = [
  * Creates the Yjs document, WebSocket provider, editor state, and view model,
  * then wires up awareness broadcasting and remote-cursor collection.
  *
- * Returns `{ viewModel, status }` — the view model is `null` until the
+ * Returns `{ viewModel, status, users }` — the view model is `null` until the
  * provider has connected and the editor state is ready.
  */
 export function useCollaborativeEditor() {
   const [viewModel, setViewModel] = useState<ViewModel | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [users, setUsers] = useState<ConnectedUser[]>([]);
 
   useEffect(() => {
     const ydoc = new Y.Doc();
@@ -47,29 +52,50 @@ export function useCollaborativeEditor() {
 
     const doc = new CollaborativeDocument(ytext);
 
-    // Collect remote cursor positions whenever any peer's awareness changes.
+    /**
+     * Derive the connected-user list and remote cursor positions from the
+     * awareness states. Called on every awareness `change` event.
+     */
     awareness.on('change', () => {
       const states = awareness.getStates();
       const cursors: RemoteCursorAbsolute[] = [];
+      const connectedUsers: ConnectedUser[] = [];
 
-      states.forEach((state: any, clientID: number) => {
+      states.forEach((state: Record<string, unknown>, clientID: number) => {
+        const userInfo = state.user as { name: string; color: string } | undefined;
+        if (!userInfo) return;
+
+        connectedUsers.push({
+          clientID,
+          name: userInfo.name,
+          color: userInfo.color,
+          isLocal: clientID === ydoc.clientID,
+        });
+
         if (clientID === ydoc.clientID) return;
 
-        if (state.cursor && state.user) {
-          const anchorAbs = Y.createAbsolutePositionFromRelativePosition(state.cursor.anchor, ydoc);
-          const headAbs = Y.createAbsolutePositionFromRelativePosition(state.cursor.head, ydoc);
+        const cursorState = state.cursor as {
+          anchor: Y.RelativePosition;
+          head: Y.RelativePosition;
+        } | null | undefined;
+
+        if (cursorState) {
+          const anchorAbs = Y.createAbsolutePositionFromRelativePosition(cursorState.anchor, ydoc);
+          const headAbs = Y.createAbsolutePositionFromRelativePosition(cursorState.head, ydoc);
 
           if (anchorAbs && headAbs) {
             cursors.push({
               clientID,
-              user: state.user,
+              user: userInfo,
               anchor: doc.getPositionAt(anchorAbs.index),
               head: doc.getPositionAt(headAbs.index),
             });
           }
         }
       });
+
       vm.setRemoteCursors(cursors);
+      setUsers(connectedUsers);
     });
 
     // Seed with initial content only when this is the first client in the room.
@@ -89,10 +115,12 @@ export function useCollaborativeEditor() {
     const undoManager = new YjsUndoManager(ytext);
     const editorState = new EditorState(doc, cursor, undoManager, ydoc, ytext);
 
-    // Broadcast local cursor position to peers after every state change.
+    // Broadcast local cursor position to peers after every state change,
+    // throttled to ~50ms to reduce network traffic during rapid typing.
+    const throttledBroadcast = createThrottledBroadcastCursor(awareness, ytext, doc);
     editorState.subscribe(() => {
       const activeCursor = editorState.getCursor();
-      broadcastCursor(awareness, ytext, doc, activeCursor.anchor, activeCursor.active);
+      throttledBroadcast(activeCursor.anchor, activeCursor.active);
     });
 
     const vm = new ViewModel(editorState);
@@ -105,5 +133,5 @@ export function useCollaborativeEditor() {
     };
   }, []);
 
-  return { viewModel, status };
+  return { viewModel, status, users };
 }

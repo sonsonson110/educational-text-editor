@@ -8,6 +8,7 @@ import {
   type MouseEventHandler,
   type WheelEventHandler,
 } from "react";
+import type { RemoteCursorView } from "@/collaboration/awareness";
 import {
   Cursor as CursorComponent,
   Line,
@@ -16,6 +17,7 @@ import {
   SCROLLBAR_SIZE,
   Gutter,
   RemoteCursor,
+  RemoteSelection,
 } from "./components";
 import { getWordSelection, mapKeyboardEvent, buildSelectionRects } from "./utils";
 import { LINE_HEIGHT } from "@/constants";
@@ -49,6 +51,9 @@ export function EditorView({ viewModel }: Props) {
         viewModel.getLineContent(viewModel.getViewportStart() + vpLine).length,
       viewModel.getVisibleLines().length,
     ),
+  );
+  const [remoteCursors, setRemoteCursors] = useState<RemoteCursorView[]>(
+    viewModel.getRemoteCursorsViewportPositions(),
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -350,6 +355,7 @@ export function EditorView({ viewModel }: Props) {
     setLines(nextLines);
     setCursor(nextCursor);
     setSelectionRects(nextRects);
+    setRemoteCursors(viewModel.getRemoteCursorsViewportPositions());
     setScrollTop(viewModel.getScrollTop());
     setScrollLeft(viewModel.getScrollLeft());
     setScrollHeight(viewModel.getScrollHeight());
@@ -444,17 +450,39 @@ export function EditorView({ viewModel }: Props) {
         >
           <Selection rects={selectionRects} />
 
+          {/* Remote selections — behind text, alongside local selection */}
+          {remoteCursors.map((rc) => {
+            const anchorVp = rc.anchor;
+            const headVp = rc.head;
+            const vpStart = viewModel.getViewportStart();
+            const rects = buildSelectionRects(
+              anchorVp,
+              headVp,
+              (vpLine) => viewModel.getLineContent(vpStart + vpLine).length,
+              lines.length,
+            );
+            if (rects.length === 0) return null;
+            return (
+              <RemoteSelection
+                key={rc.clientID}
+                rects={rects}
+                color={rc.user.color}
+              />
+            );
+          })}
+
           {lines.map((line) => (
             <Line key={line.lineNumber} line={line} />
-          ))}
-
-          {viewModel.getRemoteCursorsViewportPositions().map((rc) => (
-            <RemoteCursor key={rc.clientID} remoteCursor={rc} />
           ))}
 
           {cursor && viewModel.isCursorVisible() && (
             <CursorComponent position={cursor} />
           )}
+
+          {/* Remote cursors — on top of everything */}
+          {remoteCursors.map((rc) => (
+            <RemoteCursor key={rc.clientID} remoteCursor={rc} />
+          ))}
         </div>
 
         <Scrollbar

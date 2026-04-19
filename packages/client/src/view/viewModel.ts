@@ -215,14 +215,27 @@ export class ViewModel implements IViewModel {
     this.remoteCursors = cursors;
   }
 
-  /** Convert stored remote cursors to viewport-relative positions for rendering. */
+  /**
+   * Convert stored remote cursors to viewport-relative positions for rendering.
+   *
+   * Only cursors whose head or selection range overlaps the visible line range
+   * are included, so off-screen peers don't produce DOM elements.
+   */
   getRemoteCursorsViewportPositions(): RemoteCursorView[] {
     const vpStart = this.getViewportStart();
-    return this.remoteCursors.map(c => ({
-      ...c,
-      anchor: new Position(c.anchor.line - vpStart, c.anchor.column),
-      head: new Position(c.head.line - vpStart, c.head.column),
-    }));
+    const vpEnd = this.getViewportEnd();
+
+    return this.remoteCursors
+      .filter(c => {
+        const minLine = Math.min(c.anchor.line, c.head.line);
+        const maxLine = Math.max(c.anchor.line, c.head.line);
+        return maxLine >= vpStart && minLine < vpEnd;
+      })
+      .map(c => ({
+        ...c,
+        anchor: new Position(c.anchor.line - vpStart, c.anchor.column),
+        head: new Position(c.head.line - vpStart, c.head.column),
+      }));
   }
 
   scrollToCursor(): void {

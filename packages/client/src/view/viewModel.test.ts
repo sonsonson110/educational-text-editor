@@ -346,4 +346,58 @@ describe("ViewModel", () => {
       expect(stub.execute).toHaveBeenCalledWith(cmd);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Remote cursor viewport culling
+  // -------------------------------------------------------------------------
+
+  describe("getRemoteCursorsViewportPositions", () => {
+    it("excludes remote cursors entirely above the viewport", () => {
+      const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
+      vm.setRemoteCursors([
+        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(2, 0), head: p(2, 5) },
+      ]);
+      expect(vm.getRemoteCursorsViewportPositions()).toHaveLength(0);
+    });
+
+    it("excludes remote cursors entirely below the viewport", () => {
+      const vm = makeVM(makeStub({ lineCount: 100 }), 0, 5);
+      vm.setRemoteCursors([
+        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(50, 0), head: p(50, 5) },
+      ]);
+      expect(vm.getRemoteCursorsViewportPositions()).toHaveLength(0);
+    });
+
+    it("includes remote cursors within the viewport with correct relative positions", () => {
+      const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
+      vm.setRemoteCursors([
+        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(12, 3), head: p(12, 8) },
+      ]);
+      const result = vm.getRemoteCursorsViewportPositions();
+      expect(result).toHaveLength(1);
+      expect(result[0].head.line).toBe(2);
+      expect(result[0].head.column).toBe(8);
+      expect(result[0].anchor.line).toBe(2);
+      expect(result[0].anchor.column).toBe(3);
+    });
+
+    it("includes cursors with selection spanning the viewport boundary", () => {
+      const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
+      // Selection starts above viewport but head is inside
+      vm.setRemoteCursors([
+        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(5, 0), head: p(12, 4) },
+      ]);
+      const result = vm.getRemoteCursorsViewportPositions();
+      expect(result).toHaveLength(1);
+    });
+
+    it("includes cursors whose anchor is inside viewport but head is below", () => {
+      const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
+      vm.setRemoteCursors([
+        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(13, 0), head: p(20, 4) },
+      ]);
+      const result = vm.getRemoteCursorsViewportPositions();
+      expect(result).toHaveLength(1);
+    });
+  });
 });

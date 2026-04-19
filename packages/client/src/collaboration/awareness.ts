@@ -44,6 +44,14 @@ export interface RemoteCursorView {
   head: Position;
 }
 
+/** A user entry shown in the presence bar. */
+export interface ConnectedUser {
+  clientID: number;
+  name: string;
+  color: string;
+  isLocal: boolean;
+}
+
 /**
  * Publish the local cursor position to all peers via the Yjs awareness protocol.
  *
@@ -51,17 +59,51 @@ export interface RemoteCursorView {
  * they remain valid even after concurrent edits change the document length.
  */
 export function broadcastCursor(
-  awareness: any,
+  awareness: unknown,
   ytext: Y.Text,
   document: IDocument,
   anchorPos: Position,
   headPos: Position
-) {
+): void {
   const anchorOffset = document.getOffsetAt(anchorPos);
   const headOffset = document.getOffsetAt(headPos);
 
-  awareness.setLocalStateField("cursor", {
-    anchor: Y.createRelativePositionFromTypeIndex(ytext, anchorOffset),
-    head: Y.createRelativePositionFromTypeIndex(ytext, headOffset),
-  });
+  (awareness as { setLocalStateField: (field: string, value: unknown) => void })
+    .setLocalStateField("cursor", {
+      anchor: Y.createRelativePositionFromTypeIndex(ytext, anchorOffset),
+      head: Y.createRelativePositionFromTypeIndex(ytext, headOffset),
+    });
+}
+
+/** Minimum interval (ms) between consecutive awareness broadcasts. */
+const BROADCAST_THROTTLE_MS = 50;
+
+/**
+ * Throttled version of {@link broadcastCursor}.
+ *
+ * During rapid typing the local cursor changes on every keypress. This wrapper
+ * limits awareness network traffic to at most one broadcast per
+ * {@link BROADCAST_THROTTLE_MS} milliseconds, sending the latest position when
+ * the timer fires.
+ */
+export function createThrottledBroadcastCursor(
+  awareness: unknown,
+  ytext: Y.Text,
+  document: IDocument,
+): (anchorPos: Position, headPos: Position) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: { anchorPos: Position; headPos: Position } | null = null;
+
+  return (anchorPos: Position, headPos: Position) => {
+    pending = { anchorPos, headPos };
+    if (timer) return;
+
+    timer = setTimeout(() => {
+      timer = null;
+      if (pending) {
+        broadcastCursor(awareness, ytext, document, pending.anchorPos, pending.headPos);
+        pending = null;
+      }
+    }, BROADCAST_THROTTLE_MS);
+  };
 }
