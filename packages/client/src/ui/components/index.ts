@@ -7,3 +7,4 @@ export { RemoteCursor } from "./RemoteCursor";
 export { RemoteSelection } from "./RemoteSelection";
 export { UserPresenceBar } from "./UserPresenceBar";
 export type { ConnectionStatus } from "./UserPresenceBar";
+export { BottomBar } from "./BottomBar";

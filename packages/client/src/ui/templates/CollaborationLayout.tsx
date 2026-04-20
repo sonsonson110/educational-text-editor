@@ -18,7 +18,7 @@ export function CollaborationLayout() {
 
   if (!viewModel) {
     return (
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-full">
         <UserPresenceBar users={users} connectionStatus={status} />
         <div className="flex-1 flex items-center justify-center text-neutral-500 font-mono text-sm">
           Connecting…
@@ -28,7 +28,7 @@ export function CollaborationLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <UserPresenceBar users={users} connectionStatus={status} />
       <div className="flex-1 min-h-0">
         <EditorView viewModel={viewModel} />

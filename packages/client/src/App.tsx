@@ -1,11 +1,14 @@
 import { EditorSetup } from "@/ui/EditorSetup";
-import { SoloLayout } from "@/ui/templates/SoloLayout";
+import { AppLayout } from "@/ui/templates/AppLayout";
+import { CollaborationLayout } from "@/ui/templates/CollaborationLayout";
 
 function App() {
   return (
-    <EditorSetup>
-      <SoloLayout />
-    </EditorSetup>
+    <AppLayout>
+      <EditorSetup>
+        <CollaborationLayout />
+      </EditorSetup>
+    </AppLayout>
   );
 }
 

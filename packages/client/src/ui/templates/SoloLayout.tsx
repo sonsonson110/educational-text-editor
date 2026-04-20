@@ -22,7 +22,7 @@ export function SoloLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <div className="flex-1 min-h-0">
         <EditorView viewModel={viewModel} />
       </div>
