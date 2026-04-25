@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  client:
+    # Use an environment variable for the registry prefix, defaulting to a placeholder
+    image: ${IMAGE_PREFIX:-yourusername}/collab-editor-client:latest
+    ports:
+      - "80:80"
+    networks:
+      - collab-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+  server:
+    image: ${IMAGE_PREFIX:-yourusername}/collab-editor-server:latest
+    networks:
+      - collab-net
+    deploy:
+      replicas: 1
+
+networks:
+  collab-net:
+    driver: overlay

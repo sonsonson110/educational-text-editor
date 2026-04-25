@@ -20,6 +20,7 @@ A complete walkthrough for deploying the collaborative text editor application s
 ### Step 1.1 — Log in to your registry
 
 **Action (on your local machine):**
+
 ```bash
 # Log in to Docker Hub (or use ghcr.io for GitHub Container Registry)
 docker login
@@ -29,6 +30,7 @@ docker login
 
 **Action (on your local machine):**
 Run the following commands in the root of your project. Replace `yourusername` with your actual registry username.
+
 ```bash
 # Build the server image
 docker build -t yourusername/collab-editor-server:latest -f packages/server/Dockerfile .
@@ -46,6 +48,7 @@ docker build -t yourusername/collab-editor-client:latest \
 ### Step 1.3 — Push the images
 
 **Action (on your local machine):**
+
 ```bash
 docker push yourusername/collab-editor-server:latest
 docker push yourusername/collab-editor-client:latest
@@ -62,33 +65,7 @@ docker push yourusername/collab-editor-client:latest
 **Action (inside the VM via SSH):**
 Create a file named `docker-stack.yml` on the VM:
 
-```yaml
-version: '3.8'
-
-services:
-  client:
-    image: yourusername/collab-editor-client:latest # Ensure this matches the pushed image
-    ports:
-      - "80:80" # Maps port 80 on the VM to port 80 in the container
-    networks:
-      - collab-net
-    deploy:
-      replicas: 1
-      update_config:
-        parallelism: 1
-        delay: 10s
-
-  server:
-    image: yourusername/collab-editor-server:latest # Ensure this matches the pushed image
-    networks:
-      - collab-net
-    deploy:
-      replicas: 1
-
-networks:
-  collab-net:
-    driver: overlay
-```
+[docker-stack.yml](../../docker-stack.yml)
 
 ---
 
@@ -100,6 +77,7 @@ networks:
 
 **Action (inside the VM via SSH):**
 If your application requires an API key, you can create a secret like this:
+
 ```bash
 echo "your-super-secret-api-key" | docker secret create my_api_key -
 ```
@@ -116,11 +94,13 @@ echo "your-super-secret-api-key" | docker secret create my_api_key -
 
 **Action (inside the VM via SSH):**
 Navigate to the directory containing your `docker-stack.yml` and run:
+
 ```bash
 docker stack deploy -c docker-stack.yml collab-editor
 ```
 
 **Expected Output:**
+
 ```
 Creating network collab-editor_collab-net
 Creating service collab-editor_client
@@ -135,6 +115,7 @@ Creating service collab-editor_server
 
 **Action:**
 Check the status of the stack:
+
 ```bash
 docker stack services collab-editor
 ```
@@ -142,6 +123,7 @@ docker stack services collab-editor
 You should see `1/1` under the `REPLICAS` column for both the client and the server.
 
 If a service is failing, you can check its logs:
+
 ```bash
 docker service logs collab-editor_client
 ```
@@ -155,6 +137,7 @@ docker service logs collab-editor_client
 **Purpose:** Ensure the Cloudflare Tunnel is correctly routing public internet traffic to the newly deployed Docker container.
 
 **Action:**
+
 1. Open a web browser on your host machine (or your phone).
 2. Navigate to the URL you configured or generated in Phase 2 (e.g., `https://random-words.trycloudflare.com` or `https://collab.yourdomain.com`).
 3. You should now see your collaborative text editor loading securely over HTTPS!
