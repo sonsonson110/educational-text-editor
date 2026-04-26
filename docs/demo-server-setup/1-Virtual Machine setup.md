@@ -1,6 +1,6 @@
 # Linux VM as VPS — Setup Guide
 
-A complete walkthrough for setting up a headless Ubuntu Server VM in VirtualBox and accessing it exclusively via SSH from your host machine.
+A complete walkthrough for setting up a headless Ubuntu Server VM in VirtualBox and accessing it via SSH. **Part 3** covers initial local SSH access via VirtualBox port-forwarding. **Part 4** covers the production access method: SSH via the permanent Cloudflare Tunnel domain (`ssh.pson02.io.vn`).
 
 ---
 
@@ -99,7 +99,7 @@ A complete walkthrough for setting up a headless Ubuntu Server VM in VirtualBox 
 
 ---
 
-## Part 3 — Configure SSH Access from Host
+## Part 3 — Configure Initial SSH Access from Host (Local Only)
 
 ### Step 3.1 — Power off the VM
 
@@ -248,13 +248,53 @@ ssh myvps
 
 ---
 
+## Part 4 — SSH Access via Cloudflare Tunnel Domain
+
+Once the Cloudflare Tunnel is set up (see `2-Cloudflare Tunnel setup.md`) with an SSH public hostname (`ssh.pson02.io.vn` → `tcp://localhost:22`), you can SSH into the VM from *any machine on the internet* — no VirtualBox port-forwarding required.
+
+### Step 4.1 — Install cloudflared on your local machine
+
+**Purpose:** The `cloudflared` binary acts as a local proxy, bridging your SSH client to the Cloudflare Tunnel.
+
+**Action (on your local machine):**
+```bash
+# Linux (Debian/Ubuntu)
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && sudo dpkg -i cloudflared.deb
+```
+
+### Step 4.2 — Add the Cloudflare SSH config shortcut
+
+**Purpose:** Tell your SSH client to route all connections to `ssh.pson02.io.vn` through `cloudflared` automatically.
+
+**Action — add to `~/.ssh/config` on your local machine:**
+```
+Host ssh.pson02.io.vn
+  ProxyCommand cloudflared access ssh --hostname %h
+  User youruser
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+> Replace `youruser` with your VM username and `~/.ssh/id_ed25519` with the path to your private key.
+
+### Step 4.3 — Connect
+
+**Action:**
+```bash
+ssh ssh.pson02.io.vn
+```
+
+This is the **primary access method** going forward — both for manual administration and for the automated GitHub Actions deployment pipeline. Password login remains disabled; only key-based authentication is accepted.
+
+---
+
 ## Summary
 
 | What was set up | How it works |
 |---|---|
 | Ubuntu Server VM | Headless, CLI-only, no desktop environment |
-| VirtualBox NAT + port-forward | Host port `2222` tunnels to VM port `22` |
-| SSH key auth | Ed25519 key pair, password login disabled |
-| `~/.ssh/config` alias | `ssh myvps` connects in one command |
+| VirtualBox NAT + port-forward | Host port `2222` tunnels to VM port `22` — for initial local access only |
+| SSH key auth | Ed25519 key pair, password login permanently disabled |
+| `~/.ssh/config` (local shortcut) | `ssh myvps` connects via local port-forward |
+| Cloudflare Tunnel SSH hostname | `ssh ssh.pson02.io.vn` — primary remote access method via `cloudflared` ProxyCommand |
 
-The VM now behaves exactly like a remote VPS — the only way in is SSH with your private key.
+The VM is accessible from anywhere over the internet exclusively via SSH key authentication through the Cloudflare Tunnel. There is no open port, no password, and no direct exposure to the public internet.

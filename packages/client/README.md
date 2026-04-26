@@ -1,6 +1,5 @@
-> More in ./docs
-
-Live demo: <https://educational-text-editor.web.app/>
+Live demo: <https://collab-text-editor.pson02.io.vn/>
+> Server might only open around 9 PM to 11 PM (GMT +7) - It's a virtual machine running on my 5 years old laptop, I usually don't turn it on at other times.
 
 ---
 

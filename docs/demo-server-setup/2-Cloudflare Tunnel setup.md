@@ -8,83 +8,77 @@ Reference: [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/ne
 
 ## Prerequisites
 
-- SSH access to your VM (completed in Phase 1)
-
-> **Note:** This guide prioritizes the **Free Quick Tunnel** method, which does not require you to own a domain or have a Cloudflare account. If you *do* own a domain and want a permanent URL, see the **Alternative: Permanent Custom Domain** section at the bottom.
-
----
-
-## Part 1 — Create a Free Quick Tunnel
-
-### Step 1.1 — Install cloudflared on the VM
-
-**Purpose:** Download and install the Cloudflare daemon.
-
-**Action (inside the VM via SSH):**
-```bash
-curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && 
-sudo dpkg -i cloudflared.deb
-```
-
-### Step 1.2 — Start the Quick Tunnel
-
-**Purpose:** Securely link your VM to a random public URL provided by Cloudflare.
-
-**Action (inside the VM via SSH):**
-Run the following command. It will stay running in your terminal and print out a temporary random URL.
-```bash
-cloudflared tunnel --url http://localhost:80
-```
-
-> [!IMPORTANT]
-> Keep this terminal open! Look for the line that says `Your quick Tunnel has been created! Visit it at (https://...trycloudflare.com)`. **Save this random URL**, as you will need it for the deployment phase.
+- SSH access to your VM
+- A registered domain name (e.g., `yourdomain.com`)
 
 ---
 
-## Alternative: Permanent Custom Domain (Requires owned domain)
-
-If you own a domain and want a persistent URL (e.g., `collab.yourdomain.com`), follow these steps instead of the Quick Tunnel above.
-
-### Step A.1 — Create the Tunnel via Dashboard
+## Step 1 — Add your domain to Cloudflare
 
 1. Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. On the left sidebar, click on **Zero Trust**
-3. In the Zero Trust dashboard, go to **Networks → Connectors → Tunnels**
-4. Click the **Add a tunnel** button
-5. Select **Cloudflared** as the connector type and click Next
-6. Name your tunnel (e.g., `myvps-tunnel` or `demo-server`)
-7. Click **Save tunnel**
+2. Click **Add a site** and enter your domain name.
+3. Select the Free plan.
+4. Cloudflare will scan your existing DNS records and then provide you with two nameservers.
+5. Log in to your domain registrar (e.g., Namecheap, GoDaddy) and replace the default nameservers with the ones Cloudflare provided.
+6. Wait for propagation. This usually takes a few minutes but can occasionally take longer.
 
-### Step A.2 — Install and Authenticate on the VM
+---
+
+## Step 2 — Create the Tunnel via Dashboard
+
+1. In the Cloudflare dashboard, go to **Zero Trust** (left sidebar).
+2. Navigate to **Networks → Connectors → Tunnels**.
+3. Click the **Add a tunnel** button.
+4. Select **Cloudflared** as the connector type and click Next.
+5. Name your tunnel (e.g., `vm-production-tunnel`).
+6. Click **Save tunnel**.
+
+---
+
+## Step 3 — Install and Authenticate on the VM
 
 1. On the "Install and run a connector" screen, select your environment (Debian / 64-bit).
-2. Copy the installation command provided.
-3. Paste and run the command inside your VM via SSH. It will look similar to:
+2. Copy the provided installation command. It will look similar to:
    ```bash
    curl -L --output cloudflared.deb ... && sudo dpkg -i cloudflared.deb && sudo cloudflared service install eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    ```
-4. Wait for installation. Confirm status with `sudo systemctl status cloudflared`.
+3. SSH into your VM and run the command.
+4. Wait for the installation to finish. You can confirm it's running as a background service with `sudo systemctl status cloudflared`.
 
-### Step A.3 — Route Traffic to the Application
+---
 
-1. In the "Route traffic" screen, under the **Public Hostname** tab
-2. Configure the public URL:
-   - **Subdomain:** `collab-text-editor` (or your desired subdomain)
-   - **Domain:** Select your domain from the dropdown
-   - **Path:** Leave blank
-3. Configure the local service:
-   - **Type:** `HTTP`
-   - **URL:** `localhost:80`
-4. Click **Save hostname**
+## Step 4 — Route Traffic
+
+Once the tunnel is connected, you need to map public hostnames to local ports on the VM.
+
+1. In the Cloudflare Zero Trust dashboard, under the **Public Hostname** tab for your tunnel, click **Add a public hostname**.
+
+### 4.1 Route the Web Application (HTTP)
+This allows users to access the collaborative editor.
+- **Subdomain:** `collab-text-editor` (or whatever you prefer)
+- **Domain:** Select your domain from the dropdown
+- **Path:** Leave blank
+- **Service Type:** `HTTP`
+- **Service URL:** `localhost:80`
+- Click **Save hostname**.
+
+### 4.2 Route SSH for CI/CD (TCP)
+This allows GitHub Actions to securely SSH into the VM without opening port 22 to the public internet.
+- Click **Add a public hostname** again.
+- **Subdomain:** `ssh`
+- **Domain:** Select your domain from the dropdown
+- **Service Type:** `SSH`
+- **Service URL:** `localhost:22`
+- Click **Save hostname**.
 
 ---
 
 ## Summary
 
-| What was set up | How it works |
+| Component | Function |
 |---|---|
-| `cloudflared` | Runs on the VM, initiating outbound secure traffic only. |
-| Zero Trust Tunnel | Securely links Cloudflare's edge network to your VM without opening inbound ports. |
-| Access Route | Forwards all requests for your public URL securely through the tunnel to `localhost:80` on the VM. The Docker Swarm handles routing the traffic to the frontend or backend. |
+| `cloudflared` Service | Runs automatically on your VM, establishing an outbound secure connection to Cloudflare. No manual SSH sessions required to start it. |
+| Web Routing | `https://collab-text-editor.yourdomain.com` securely forwards to `localhost:80` on the VM. |
+| SSH Routing | `ssh.yourdomain.com` securely forwards to `localhost:22`, enabling automated GitHub Actions deployments. |
 
-Your VM is now securely wired to the public internet. The next step is setting up Docker Swarm to host the application.
+Your VM is now securely wired to the public internet with stable, permanent URLs. The next step is setting up Docker Swarm to host the application.

@@ -2,8 +2,9 @@ version: '3.8'
 
 services:
   client:
-    # Use an environment variable for the registry prefix, defaulting to a placeholder
-    image: ${IMAGE_PREFIX:-yourusername}/collab-editor-client:latest
+    # IMAGE_PREFIX is set by the CI workflow to ghcr.io/<github-owner>.
+    # For manual deploys, export IMAGE_PREFIX before running docker stack deploy.
+    image: ${IMAGE_PREFIX}/collab-editor-client:latest
     ports:
       - "80:80"
     networks:
@@ -15,7 +16,7 @@ services:
         delay: 10s
 
   server:
-    image: ${IMAGE_PREFIX:-yourusername}/collab-editor-server:latest
+    image: ${IMAGE_PREFIX}/collab-editor-server:latest
     networks:
       - collab-net
     deploy:
