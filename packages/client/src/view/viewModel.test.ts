@@ -3,6 +3,7 @@ import { ViewModel } from "./viewModel";
 import type { IEditorState } from "@/editor/editorState";
 import { Cursor } from "@/editor/cursor/cursor";
 import { Position } from "@/core/position/position";
+import type { TopPaddingReservationKey } from "@/view/types";
 import { LINE_HEIGHT } from "@/constants";
 
 const p = (line: number, col: number) => new Position(line, col);
@@ -44,10 +45,14 @@ function makeVM(
   stub: IEditorState,
   startLine = 0,
   visibleLines = 5,
-  visibleCols = 80
+  visibleCols = 80,
 ): ViewModel {
   const vm = new ViewModel(stub);
-  vm.setViewport(visibleCols * CHAR_WIDTH, visibleLines * LINE_HEIGHT, CHAR_WIDTH);
+  vm.setViewport(
+    visibleCols * CHAR_WIDTH,
+    visibleLines * LINE_HEIGHT,
+    CHAR_WIDTH,
+  );
   vm.setScrollPosition(0, startLine * LINE_HEIGHT);
   return vm;
 }
@@ -156,7 +161,12 @@ describe("ViewModel", () => {
 
     it("clamps at max line length plus padding", () => {
       // line length 50, viewport 80 -> no scrolling allowed
-      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 50 }), 0, 5, 80);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, maxLineLength: 50 }),
+        0,
+        5,
+        80,
+      );
       vm.scrollBy(100 * CHAR_WIDTH, 0);
       expect(vm.getScrollLeft()).toBe(0);
     });
@@ -164,13 +174,23 @@ describe("ViewModel", () => {
     it("scrollLeft clamps properly with custom viewport constraints", () => {
       // length 100, viewport 80, padding 3
       // maxScroll = (100 + 3) * CHAR_WIDTH - 80 * CHAR_WIDTH = 23 * CHAR_WIDTH
-      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5, 80);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, maxLineLength: 100 }),
+        0,
+        5,
+        80,
+      );
       vm.scrollBy(1000 * CHAR_WIDTH, 0);
       expect(vm.getScrollLeft()).toBe(23 * CHAR_WIDTH);
     });
 
     it("scrolls horizontally in both directions safely", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, maxLineLength: 100 }), 0, 5, 80);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, maxLineLength: 100 }),
+        0,
+        5,
+        80,
+      );
       vm.scrollBy(10 * CHAR_WIDTH, 0);
       expect(vm.getScrollLeft()).toBe(10 * CHAR_WIDTH);
       vm.scrollBy(-3 * CHAR_WIDTH, 0);
@@ -206,13 +226,23 @@ describe("ViewModel", () => {
     });
 
     it("evaluates horizontally too - false if scrolled out to right", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 100, maxLineLength: 200 }), 0, 5, 40);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, cursorCol: 100, maxLineLength: 200 }),
+        0,
+        5,
+        40,
+      );
       // cursor is at 100, viewport is 0-40
       expect(vm.isCursorVisible()).toBe(false);
     });
 
     it("evaluates horizontally too - true if scrolled into view", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 100, maxLineLength: 200 }), 0, 5, 40);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, cursorCol: 100, maxLineLength: 200 }),
+        0,
+        5,
+        40,
+      );
       vm.scrollBy(80 * CHAR_WIDTH, 0); // scrollX is now 80, view is 80-120
       expect(vm.isCursorVisible()).toBe(true);
     });
@@ -224,14 +254,22 @@ describe("ViewModel", () => {
 
   describe("Viewport Position Queries", () => {
     it("getCursorViewportPosition offsets by viewport start", () => {
-      const vm = makeVM(makeStub({ lineCount: 20, cursorLine: 7, cursorCol: 4 }), 5, 5);
+      const vm = makeVM(
+        makeStub({ lineCount: 20, cursorLine: 7, cursorCol: 4 }),
+        5,
+        5,
+      );
       const pos = vm.getCursorViewportPosition();
       expect(pos.line).toBe(2);
       expect(pos.column).toBe(4);
     });
 
     it("getAnchorViewportPosition offsets by viewport start", () => {
-      const vm = makeVM(makeStub({ lineCount: 20, cursorLine: 7, cursorCol: 4 }), 5, 5);
+      const vm = makeVM(
+        makeStub({ lineCount: 20, cursorLine: 7, cursorCol: 4 }),
+        5,
+        5,
+      );
       const pos = vm.getAnchorViewportPosition();
       expect(pos.line).toBe(2);
       expect(pos.column).toBe(4);
@@ -263,7 +301,12 @@ describe("ViewModel", () => {
     });
 
     it("horizontally scrolls right when cursor is past right edge", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 90, maxLineLength: 200 }), 0, 5, 80);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, cursorCol: 90, maxLineLength: 200 }),
+        0,
+        5,
+        80,
+      );
       vm.scrollToCursor();
       // Required space: 90 chars. Viewport width: 80 chars. Scroll = 90 - 80 + padding(4)
       const expectedLeft = (90 - 80 + 4) * CHAR_WIDTH;
@@ -271,7 +314,12 @@ describe("ViewModel", () => {
     });
 
     it("horizontally scrolls left when cursor is past left edge", () => {
-      const vm = makeVM(makeStub({ lineCount: 10, cursorCol: 3, maxLineLength: 200 }), 0, 5, 80);
+      const vm = makeVM(
+        makeStub({ lineCount: 10, cursorCol: 3, maxLineLength: 200 }),
+        0,
+        5,
+        80,
+      );
       vm.scrollBy(20 * CHAR_WIDTH, 0); // User scrolls manually away
       vm.scrollToCursor();
       // Cursor is at col 3. Needs padding -> top to max(0, 3*char - 4*char) = 0
@@ -279,7 +327,17 @@ describe("ViewModel", () => {
     });
 
     it("cursor is entirely visible after scrollToCursor", () => {
-      const vm = makeVM(makeStub({ lineCount: 20, cursorLine: 15, cursorCol: 150, maxLineLength: 300 }), 0, 5, 40);
+      const vm = makeVM(
+        makeStub({
+          lineCount: 20,
+          cursorLine: 15,
+          cursorCol: 150,
+          maxLineLength: 300,
+        }),
+        0,
+        5,
+        40,
+      );
       vm.scrollToCursor();
       expect(vm.isCursorVisible()).toBe(true);
     });
@@ -323,7 +381,7 @@ describe("ViewModel", () => {
       expect(vm.getScrollLeft()).toBe(0);
     });
   });
-  
+
   // -------------------------------------------------------------------------
   // Delegation validation
   // -------------------------------------------------------------------------
@@ -360,7 +418,12 @@ describe("ViewModel", () => {
     it("excludes remote cursors entirely above the viewport", () => {
       const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
       vm.setRemoteCursors([
-        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(2, 0), head: p(2, 5) },
+        {
+          clientID: 1,
+          user: { name: "A", color: "#f00" },
+          anchor: p(2, 0),
+          head: p(2, 5),
+        },
       ]);
       expect(vm.getRemoteCursorsViewportPositions()).toHaveLength(0);
     });
@@ -368,7 +431,12 @@ describe("ViewModel", () => {
     it("excludes remote cursors entirely below the viewport", () => {
       const vm = makeVM(makeStub({ lineCount: 100 }), 0, 5);
       vm.setRemoteCursors([
-        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(50, 0), head: p(50, 5) },
+        {
+          clientID: 1,
+          user: { name: "A", color: "#f00" },
+          anchor: p(50, 0),
+          head: p(50, 5),
+        },
       ]);
       expect(vm.getRemoteCursorsViewportPositions()).toHaveLength(0);
     });
@@ -376,7 +444,12 @@ describe("ViewModel", () => {
     it("includes remote cursors within the viewport with correct relative positions", () => {
       const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
       vm.setRemoteCursors([
-        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(12, 3), head: p(12, 8) },
+        {
+          clientID: 1,
+          user: { name: "A", color: "#f00" },
+          anchor: p(12, 3),
+          head: p(12, 8),
+        },
       ]);
       const result = vm.getRemoteCursorsViewportPositions();
       expect(result).toHaveLength(1);
@@ -390,7 +463,12 @@ describe("ViewModel", () => {
       const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
       // Selection starts above viewport but head is inside
       vm.setRemoteCursors([
-        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(5, 0), head: p(12, 4) },
+        {
+          clientID: 1,
+          user: { name: "A", color: "#f00" },
+          anchor: p(5, 0),
+          head: p(12, 4),
+        },
       ]);
       const result = vm.getRemoteCursorsViewportPositions();
       expect(result).toHaveLength(1);
@@ -399,7 +477,12 @@ describe("ViewModel", () => {
     it("includes cursors whose anchor is inside viewport but head is below", () => {
       const vm = makeVM(makeStub({ lineCount: 100 }), 10, 5);
       vm.setRemoteCursors([
-        { clientID: 1, user: { name: "A", color: "#f00" }, anchor: p(13, 0), head: p(20, 4) },
+        {
+          clientID: 1,
+          user: { name: "A", color: "#f00" },
+          anchor: p(13, 0),
+          head: p(20, 4),
+        },
       ]);
       const result = vm.getRemoteCursorsViewportPositions();
       expect(result).toHaveLength(1);
@@ -407,23 +490,91 @@ describe("ViewModel", () => {
   });
 
   // -------------------------------------------------------------------------
-  // topPadding
+  // topPadding reservation system
   // -------------------------------------------------------------------------
 
-  describe("topPadding", () => {
-    it("getScrollHeight includes topPadding and one LINE_HEIGHT of bottom padding", () => {
+  describe("topPadding reservation system", () => {
+    it("getTopPadding returns 0 when no reservations have been made", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      expect(vm.getTopPadding()).toBe(0);
+    });
+
+    it("single reservation sets effective padding", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 20);
+      expect(vm.getTopPadding()).toBe(20);
+    });
+
+    it("effective padding is the maximum of all active reservations", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 20);
+      vm.reserveTopPadding("b" as TopPaddingReservationKey, 40);
+      expect(vm.getTopPadding()).toBe(40);
+    });
+
+    it("zeroing one reservation falls back to the remaining max, not to 0", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 20);
+      vm.reserveTopPadding("b" as TopPaddingReservationKey, 40);
+      vm.reserveTopPadding("b" as TopPaddingReservationKey, 0); // release "b"
+      expect(vm.getTopPadding()).toBe(20);
+    });
+
+    it("zeroing all reservations yields 0", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 20);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 0);
+      expect(vm.getTopPadding()).toBe(0);
+    });
+
+    it("negative reservation values are clamped to 0", () => {
+      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
+      vm.reserveTopPadding("x" as TopPaddingReservationKey, -50);
+      expect(vm.getTopPadding()).toBe(0);
+    });
+
+    it("getScrollHeight includes effective top padding and bottom padding", () => {
       const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
       // Default: 0 + 10*LINE_HEIGHT + LINE_HEIGHT
       expect(vm.getScrollHeight()).toBe(11 * LINE_HEIGHT);
 
-      vm.setTopPadding(LINE_HEIGHT);
-      // 1*LINE_HEIGHT + 10*LINE_HEIGHT + LINE_HEIGHT
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
+      // LINE_HEIGHT + 10*LINE_HEIGHT + LINE_HEIGHT
       expect(vm.getScrollHeight()).toBe(12 * LINE_HEIGHT);
     });
 
-    it("getViewportStart accounts for topPadding offset", () => {
+    it("when scrollTop is 0, adding padding does NOT shift scrollTop (viewport shifts naturally)", () => {
       const vm = makeVM(makeStub({ lineCount: 20 }), 0, 5);
-      vm.setTopPadding(LINE_HEIGHT);
+      expect(vm.getScrollTop()).toBe(0);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
+      // scrollTop stays at 0 — the viewport shift is intentional
+      expect(vm.getScrollTop()).toBe(0);
+    });
+
+    it("when scrollTop > 0, adding padding adjusts scrollTop by the delta to preserve visible lines", () => {
+      const vm = makeVM(makeStub({ lineCount: 20 }), 3, 5);
+      // scrollTop = 3 * LINE_HEIGHT
+      const before = vm.getScrollTop();
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
+      // scrollTop should have increased by LINE_HEIGHT
+      expect(vm.getScrollTop()).toBe(before + LINE_HEIGHT);
+      // and the same document lines are still at the top of the viewport
+      expect(vm.getViewportStart()).toBe(3);
+    });
+
+    it("when scrollTop > 0, removing padding adjusts scrollTop down to preserve visible lines", () => {
+      const vm = makeVM(makeStub({ lineCount: 20 }), 3, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
+      const before = vm.getScrollTop(); // 3*LINE_HEIGHT + LINE_HEIGHT
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, 0);
+      // scrollTop should have decreased by LINE_HEIGHT
+      expect(vm.getScrollTop()).toBe(before - LINE_HEIGHT);
+      expect(vm.getViewportStart()).toBe(3);
+    });
+
+    it("getViewportStart accounts for effective top padding offset", () => {
+      const vm = makeVM(makeStub({ lineCount: 20 }), 0, 5);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
       // scrollTop=0 → (0 - LINE_HEIGHT) clamped to 0 → line 0
       expect(vm.getViewportStart()).toBe(0);
 
@@ -436,25 +587,12 @@ describe("ViewModel", () => {
       expect(vm.getViewportStart()).toBe(1);
     });
 
-    it("scrollToCursor scrolls to topPadding + cursorLine*LINE_HEIGHT when cursor is above viewport", () => {
+    it("scrollToCursor accounts for effective top padding", () => {
       const vm = makeVM(makeStub({ lineCount: 20, cursorLine: 0 }), 5, 5);
-      vm.setTopPadding(LINE_HEIGHT);
+      vm.reserveTopPadding("a" as TopPaddingReservationKey, LINE_HEIGHT);
       // Effective cursor scroll-area top = LINE_HEIGHT + 0 = LINE_HEIGHT
       vm.scrollToCursor();
       expect(vm.getScrollTop()).toBe(LINE_HEIGHT);
-    });
-
-    it("getTopPadding returns the value set by setTopPadding", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
-      expect(vm.getTopPadding()).toBe(0);
-      vm.setTopPadding(40);
-      expect(vm.getTopPadding()).toBe(40);
-    });
-
-    it("setTopPadding clamps negative values to 0", () => {
-      const vm = makeVM(makeStub({ lineCount: 10 }), 0, 5);
-      vm.setTopPadding(-50);
-      expect(vm.getTopPadding()).toBe(0);
     });
   });
 });

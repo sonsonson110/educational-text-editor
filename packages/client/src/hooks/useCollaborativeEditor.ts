@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
-import { INITIAL_TEXT } from "@/constants";
+import { INITIAL_TEXT, LINE_HEIGHT } from "@/constants";
 import { CollaborativeDocument } from "@/core/document/collaborativeDocument";
 import { Position } from "@/core/position/position";
 import { Cursor } from "@/editor/cursor/cursor";
@@ -14,6 +14,7 @@ import {
 } from "@/collaboration/awareness";
 import { YjsUndoManager } from "@/collaboration/yjsUndoManager";
 import type { ConnectionStatus } from "@/ui/components";
+import { TOP_PADDING_RESERVATION_KEYS } from "@/view/types";
 
 const WS_URL = import.meta.env.VITE_WS_URL as string;
 const ROOM_NAME = import.meta.env.VITE_ROOM_NAME as string;
@@ -115,6 +116,14 @@ export function useCollaborativeEditor() {
       });
 
       vm.setRemoteCursors(cursors);
+
+      // Reserve top padding when any remote cursor head sits on line 0 so
+      // the cursor label is not clipped above the viewport. Zeroing the
+      // reservation (rather than removing the key) lets other reservations
+      // still contribute via max().
+      const hasRemoteOnLine0 = cursors.some((c) => c.head.line === 0);
+      vm.reserveTopPadding(TOP_PADDING_RESERVATION_KEYS.REMOTE_CURSOR_LINE_0, hasRemoteOnLine0 ? LINE_HEIGHT : 0);
+
       setUsers(connectedUsers);
     });
 

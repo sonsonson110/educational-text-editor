@@ -1,5 +1,5 @@
 import type { IEditorState } from "@/editor/editorState";
-import type { ViewLine } from "./types";
+import type { ViewLine, TopPaddingReservationKey } from "./types";
 import type { Command } from "@/editor/commands";
 import { LINE_HEIGHT } from "@/constants";
 import type { RemoteCursorAbsolute, RemoteCursorView } from "@/collaboration/awareness";
@@ -29,15 +29,22 @@ export interface IViewModel {
   setScrollPosition(left: number, top: number): void;
 
   /**
-   * Reserves pixel space above line 0 in the scroll area.
+   * Register or update a named top-padding reservation.
    *
-   * Setting a positive value shifts all rendered lines down by that many pixels,
-   * creating empty space where overlaid chrome (remote-cursor labels, search
-   * bars, replace boxes) can be shown without obscuring document content.
-   * Does **not** notify subscribers — call before the EditorView first renders.
+   * Multiple independent features (remote-cursor labels, search bar overlay,
+   * etc.) can each claim vertical space above line 0. The effective top
+   * padding is the maximum of all active reservations.
+   *
+   * When the effective padding changes and the user has already scrolled
+   * away from the top (`scrollTop > 0`), the scroll offset is adjusted by
+   * the delta so the same document lines remain visible — only the
+   * scrollbar thumb moves. When `scrollTop === 0`, the viewport shifts
+   * naturally so the padding space becomes visible.
+   *
+   * Pass `px = 0` to release a reservation without removing the key.
    */
-  setTopPadding(px: number): void;
-  /** Returns the current top padding in pixels. */
+  reserveTopPadding(key: TopPaddingReservationKey, px: number): void;
+  /** Returns the current effective top padding in pixels (max of all reservations). */
   getTopPadding(): number;
 
   // Cursor / selection
@@ -71,11 +78,12 @@ export class ViewModel implements IViewModel {
   private charWidth: number;
 
   /**
-   * Extra pixel space reserved above line 0 in the scroll area.
-   * Layouts set this to accommodate overlaid chrome (e.g. remote-cursor
-   * labels, search bars). Defaults to 0 (no reserved space).
+   * Named top-padding reservations keyed by feature name.
+   * Each entry claims a non-negative pixel height above line 0.
+   * The effective top padding is `max(values)` — removing one factor
+   * falls back to the next-highest reservation rather than dropping to 0.
    */
-  private topPadding: number = 0;
+  private topPaddingReservations = new Map<TopPaddingReservationKey, number>();
 
   /** Cursor positions of all connected remote peers, in absolute document coordinates. */
   private remoteCursors: RemoteCursorAbsolute[] = [];
@@ -102,13 +110,13 @@ export class ViewModel implements IViewModel {
   getViewportStart(): number {
     // Lines start at topPadding in the scroll area, so subtract it before
     // converting the scroll offset to a line index.
-    return Math.floor(Math.max(0, this.scrollTop - this.topPadding) / LINE_HEIGHT);
+    return Math.floor(Math.max(0, this.scrollTop - this.getTopPadding()) / LINE_HEIGHT);
   }
 
   getViewportEnd(): number {
     // Bottom visible pixel in the scroll area, offset by topPadding.
     return Math.min(
-      Math.max(0, Math.ceil((this.scrollTop + this.viewportHeight - this.topPadding) / LINE_HEIGHT)),
+      Math.max(0, Math.ceil((this.scrollTop + this.viewportHeight - this.getTopPadding()) / LINE_HEIGHT)),
       this.editor.getLineCount(),
     );
   }
@@ -143,15 +151,26 @@ export class ViewModel implements IViewModel {
   getScrollHeight(): number {
     // topPadding zone above line 0 + all lines + one LINE_HEIGHT of bottom
     // padding so the horizontal scrollbar never overlaps the last line.
-    return this.topPadding + this.editor.getLineCount() * LINE_HEIGHT + LINE_HEIGHT;
+    return this.getTopPadding() + this.editor.getLineCount() * LINE_HEIGHT + LINE_HEIGHT;
   }
 
-  setTopPadding(px: number): void {
-    this.topPadding = Math.max(0, px);
+  reserveTopPadding(key: TopPaddingReservationKey, px: number): void {
+    const oldEffective = this.getTopPadding();
+    this.topPaddingReservations.set(key, Math.max(0, px));
+    const newEffective = this.getTopPadding();
+    const delta = newEffective - oldEffective;
+
+    if (delta !== 0 && this.scrollTop > 0) {
+      this.scrollTop += delta;
+      this.clampScrollPosition();
+    }
   }
 
   getTopPadding(): number {
-    return this.topPadding;
+    if (this.topPaddingReservations.size === 0) {
+      return 0;
+    }
+    return Math.max(...this.topPaddingReservations.values());
   }
 
   getScrollWidth(): number {
@@ -272,7 +291,7 @@ export class ViewModel implements IViewModel {
 
     // Effective scroll-area pixel positions of the cursor, accounting for
     // topPadding (line 0 starts at this.topPadding in the scroll area).
-    const cursorScrollTop = this.topPadding + cursorPos.line * LINE_HEIGHT;
+    const cursorScrollTop = this.getTopPadding() + cursorPos.line * LINE_HEIGHT;
     const cursorScrollBottom = cursorScrollTop + LINE_HEIGHT;
 
     const cursorPxExtents = cursorPos.column * this.charWidth;
