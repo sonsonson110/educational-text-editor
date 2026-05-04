@@ -5,9 +5,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:all": "concurrently --names \"client,server\" --prefix-colors \"cyan,magenta\" \"npm run dev\" \"npm run dev:server\"",
+    "dev:all": "concurrently --names \"client,sync-server\" --prefix-colors \"cyan,magenta\" \"npm run dev\" \"npm run dev:sync-server\"",
     "dev": "npm run dev -w @myapp/client",
-    "dev:server": "npm run dev -w @myapp/server",
+    "dev:sync-server": "npm run dev -w @myapp/sync-server",
     "build": "npm run build -w @myapp/client",
     "test": "npm run test --workspaces --if-present",
     "test:run": "npm run test:run --workspaces --if-present",

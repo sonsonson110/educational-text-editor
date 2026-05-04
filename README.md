@@ -10,14 +10,14 @@ Live demo: <https://collab-text-editor.pson02.io.vn/>
 | Package | Description |
 |---|---|
 | [`@myapp/client`](./packages/client) | Vite + React editor frontend |
-| [`@myapp/server`](./packages/server) | Collaboration server (Yjs WebSocket) |
+| [`@myapp/sync-server`](./packages/sync-server) | Collaboration server (Yjs WebSocket) |
 
 ## Getting Started
 
 ```bash
 npm install          # install all workspace dependencies
 npm run dev          # start the client
-npm run dev:server   # start the collaboration WebSocket server
+npm run dev:sync-server   # start the collaboration WebSocket server
 npm run test:run     # run all tests across workspaces
 npm run lint         # lint all workspaces
 ```

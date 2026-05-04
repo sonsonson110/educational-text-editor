@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: 'postgres:16'
+    environment:
+      - 'POSTGRES_DB=collab-editor'
+      - 'POSTGRES_PASSWORD=password'
+      - 'POSTGRES_USER=root'
+    ports:
+      - '5432'

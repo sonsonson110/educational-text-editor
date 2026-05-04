@@ -15,8 +15,8 @@ services:
         parallelism: 1
         delay: 10s
 
-  server:
-    image: ${IMAGE_PREFIX}/collab-editor-server:latest
+  sync-server:
+    image: ${IMAGE_PREFIX}/collab-editor-sync-server:latest
     networks:
       - collab-net
     deploy:

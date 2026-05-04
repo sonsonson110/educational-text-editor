@@ -9,17 +9,17 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Copy workspace package.jsons
-COPY packages/server/package.json packages/server/
+COPY packages/sync-server/package.json packages/sync-server/
 COPY packages/client/package.json packages/client/
 
 # Install dependencies for all workspaces
 RUN npm ci
 
 # Copy server source code
-COPY packages/server packages/server
+COPY packages/sync-server packages/sync-server
 
 # Set working directory to the server package
-WORKDIR /app/packages/server
+WORKDIR /app/packages/sync-server
 
 # Expose the default WebSocket port
 EXPOSE 1234

@@ -43,15 +43,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build the collaboration server image and push it to GHCR.
-      # No build-time secrets are required for the server.
-      - name: Build and push server image
+      # Build the collaboration sync-server image and push it to GHCR.
+      # No build-time secrets are required for the sync-server.
+      - name: Build and push sync-server image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: packages/server/Dockerfile
+          file: packages/sync-server/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/collab-editor-server:latest
+          tags: ghcr.io/${{ github.repository_owner }}/collab-editor-sync-server:latest
 
       # Build the client image and push it to GHCR.
       # VITE_WS_URL is baked into the static bundle at build time — it must

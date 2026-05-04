@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  server:
+  sync-server:
     build:
       context: .
-      dockerfile: packages/server/Dockerfile
+      dockerfile: packages/sync-server/Dockerfile
     environment:
       - PORT=1234
     restart: unless-stopped
@@ -19,5 +19,5 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - server
+      - sync-server
     restart: unless-stopped
