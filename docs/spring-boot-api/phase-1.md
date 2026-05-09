@@ -10,7 +10,7 @@
 
 ### Tasks
 
-- [ ] Create the top-level feature packages under `com.collab.api`:
+- [x] Create the top-level feature packages under `com.collab.api`:
   ```
   auth/
   user/
@@ -20,8 +20,8 @@
     exception/
     security/
   ```
-- [ ] Add `application.yaml` datasource config for local PostgreSQL (via `compose.yaml` which is already present).
-- [ ] Add Flyway or Liquibase for schema migrations — **do not rely on `spring.jpa.hibernate.ddl-auto=create`** in any environment beyond a throwaway local run.
+- [x] Add `application.yaml` datasource config for local PostgreSQL (via `compose.yaml` which is already present).
+- [x] Add Flyway or Liquibase for schema migrations — **do not rely on `spring.jpa.hibernate.ddl-auto=create`** in any environment beyond a throwaway local run.
   - Recommended: **Flyway** (`spring-boot-starter-data-jpa` pulls it in automatically when on classpath).
   - First migration file: `V1__create_initial_schema.sql`.
 - [ ] Verify the app starts and connects to the DB: `./mvnw spring-boot:run`.
@@ -75,28 +75,28 @@ erDiagram
 
 ### Tasks
 
-- [ ] Create `user/User.java` — JPA entity with:
+- [x] Create `user/User.java` — JPA entity with:
   - `id` (`UUID`, generated)
   - `email` (unique, not null)
   - `passwordHash` (nullable — null for OAuth users added in Phase 3)
   - `displayName`
   - `createdAt` (`Instant`, `@CreationTimestamp`)
 
-- [ ] Create `room/entity/Room.java`:
+- [x] Create `room/entity/Room.java`:
   - `id` (`UUID`, generated)
   - `name`
   - `ownerId` (FK → `users.id`)
   - `createdAt`
 
-- [ ] Create `room/entity/RoomMember.java` (join table with extra columns):
+- [x] Create `room/entity/RoomMember.java` (join table with extra columns):
   - Composite or surrogate PK
   - `roomId` + `userId` (unique constraint)
   - `role` (`enum`: `OWNER`, `EDITOR`, `VIEWER`) — store as `@Enumerated(EnumType.STRING)`
   - `joinedAt`
 
-- [ ] Add `UserRepository.java` in `user/`.
-- [ ] Add `RoomRepository.java` and `RoomMemberRepository.java` in `room/`.
-- [ ] Add Flyway migration `V1__create_initial_schema.sql` that creates `users`, `rooms`, and `room_members` tables.
+- [x] Add `UserRepository.java` in `user/`.
+- [x] Add `RoomRepository.java` and `RoomMemberRepository.java` in `room/`.
+- [x] Add Flyway migration `V1__create_initial_schema.sql` that creates `users`, `rooms`, and `room_members` tables.
 
 ### Spring Concepts
 
@@ -119,12 +119,12 @@ erDiagram
 
 ### Tasks
 
-- [ ] Create `shared/exception/ApiException.java` — a `RuntimeException` subclass carrying an HTTP status and a message.
-- [ ] Create `shared/exception/ErrorResponse.java` — a record/DTO that defines the JSON error body:
+- [x] Create `shared/exception/ApiException.java` — a `RuntimeException` subclass carrying an HTTP status and a message.
+- [x] Create `shared/exception/ErrorResponse.java` — a record/DTO that defines the JSON error body:
   ```json
   { "status": 400, "error": "BAD_REQUEST", "message": "Email already in use" }
   ```
-- [ ] Create `shared/exception/GlobalExceptionHandler.java` annotated with `@RestControllerAdvice`:
+- [x] Create `shared/exception/GlobalExceptionHandler.java` annotated with `@RestControllerAdvice`:
   - Handle `ApiException` → return its status + `ErrorResponse`.
   - Handle `MethodArgumentNotValidException` (Bean Validation failures) → return `400` with field-level errors.
   - Handle generic `Exception` → return `500` without leaking stack traces.
@@ -146,13 +146,13 @@ erDiagram
 
 ### Tasks
 
-- [ ] Create `shared/config/SecurityConfig.java` annotated with `@Configuration` + `@EnableWebSecurity`.
-- [ ] Define a `SecurityFilterChain` bean that:
+- [x] Create `shared/config/SecurityConfig.java` annotated with `@Configuration` + `@EnableWebSecurity`.
+- [x] Define a `SecurityFilterChain` bean that:
   - Disables CSRF (stateless REST API — same as ASP.NET Core `services.AddCors()` + `[ApiController]` pattern).
   - Sets session management to `STATELESS`.
   - Permits `POST /auth/register` and `POST /auth/login` publicly.
   - Requires authentication on all other routes.
-- [ ] Register a `BCryptPasswordEncoder` bean (`@Bean` in `SecurityConfig` or a dedicated `shared/config/AppConfig.java`).
+- [x] Register a `BCryptPasswordEncoder` bean (`@Bean` in `SecurityConfig` or a dedicated `shared/config/AppConfig.java`).
 
 ### Spring Concepts
 
