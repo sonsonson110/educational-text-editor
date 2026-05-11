@@ -19,4 +19,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     /** Returns true if any user record already uses the given email. */
     boolean existsByEmail(String email);
+
+    /** Returns the user who holds the given Phase-1 session token, if one exists. */
+    Optional<User> findBySessionToken(String sessionToken);
 }

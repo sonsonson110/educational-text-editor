@@ -58,10 +58,15 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Email already in use");
         }
 
+        // Phase 1: generate a plain UUID token stored in the DB.
+        // Phase 2: replace with JwtService.generateToken(user) — stateless, no DB column needed.
+        String token = UUID.randomUUID().toString();
+
         User user = User.builder()
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
+                .sessionToken(token)
                 .build();
 
         userRepository.save(user);
@@ -71,9 +76,6 @@ public class AuthService {
         // will fire once the commit succeeds, avoiding side effects on rollback.
         eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
 
-        // Phase 1: return a random UUID as a placeholder token.
-        // Phase 2: replace this with JwtService.generateToken(user).
-        String token = UUID.randomUUID().toString();
         return new AuthResponse(token, user.getId(), user.getDisplayName());
     }
 
@@ -84,7 +86,8 @@ public class AuthService {
      *                      A generic message is used intentionally to avoid
      *                      leaking whether the email exists in the system.
      */
-    @Transactional(readOnly = true)
+    // login now writes (updates session token), so readOnly = false
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
@@ -93,9 +96,12 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
-        // Phase 1: return a random UUID as a placeholder token.
-        // Phase 2: replace this with JwtService.generateToken(user).
+        // Phase 1: rotate the session token on each login.
+        // Phase 2: replace with JwtService.generateToken(user) — no DB write needed.
         String token = UUID.randomUUID().toString();
+        user.setSessionToken(token);
+        userRepository.save(user);
+
         return new AuthResponse(token, user.getId(), user.getDisplayName());
     }
 }

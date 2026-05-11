@@ -174,17 +174,17 @@ erDiagram
 
 ### Tasks
 
-- [ ] Create `auth/dto/RegisterRequest.java` — `email`, `password`, `displayName` with `@NotBlank` / `@Email` Bean Validation annotations.
-- [ ] Create `auth/dto/LoginRequest.java` — `email`, `password`.
-- [ ] Create `auth/dto/AuthResponse.java` — `token`, `userId`, `displayName`.
-- [ ] Create `auth/AuthService.java`:
+- [x] Create `auth/dto/RegisterRequest.java` — `email`, `password`, `displayName` with `@NotBlank` / `@Email` Bean Validation annotations.
+- [x] Create `auth/dto/LoginRequest.java` — `email`, `password`.
+- [x] Create `auth/dto/AuthResponse.java` — `token`, `userId`, `displayName`.
+- [x] Create `auth/AuthService.java`:
   - `register(RegisterRequest)`: check email uniqueness → hash password → save `User` → return token.
   - `login(LoginRequest)`: load user by email → verify BCrypt hash → return token.
   - Publish `UserRegisteredEvent` after successful registration (even if no listener exists yet — adds no overhead and keeps the service decoupled from the start).
-- [ ] Create `auth/AuthController.java`:
+- [x] Create `auth/AuthController.java`:
   - `POST /api/auth/register` → `201 Created` + `AuthResponse`
   - `POST /api/auth/login` → `200 OK` + `AuthResponse`
-- [ ] Create `auth/event/UserRegisteredEvent.java` — a Java `record` with `userId` and `email`.
+- [x] Create `auth/event/UserRegisteredEvent.java` — a Java `record` with `userId` and `email`.
 
 ### Spring Concepts
 
@@ -204,13 +204,13 @@ erDiagram
 
 ### Tasks
 
-- [ ] Create `room/dto/CreateRoomRequest.java` — `name` with `@NotBlank`.
-- [ ] Create `room/dto/RoomResponse.java` — `id`, `name`, `ownerId`, `createdAt`.
-- [ ] Create `room/RoomService.java`:
+- [x] Create `room/dto/CreateRoomRequest.java` — `name` with `@NotBlank`.
+- [x] Create `room/dto/RoomResponse.java` — `id`, `name`, `ownerId`, `createdAt`.
+- [x] Create `room/RoomService.java`:
   - `createRoom(String name, UUID ownerId)`: save room → add owner as `RoomMember` with role `OWNER` → return `RoomResponse`.
   - `getRoomsForUser(UUID userId)`: return rooms where the user is a member.
   - `getRoomById(UUID roomId, UUID requesterId)`: return room or throw `ApiException(404)` if not found / not a member.
-- [ ] Create `room/RoomController.java`:
+- [x] Create `room/RoomController.java`:
   - `POST /api/rooms` → `201 Created` + `RoomResponse`
   - `GET /api/rooms` → `200 OK` + list of `RoomResponse`
   - `GET /api/rooms/{id}` → `200 OK` + `RoomResponse`
@@ -235,12 +235,12 @@ public List<RoomResponse> listRooms(Authentication authentication) {
 
 ### Tasks
 
-- [ ] Add `@SpringBootTest` + `@AutoConfigureMockMvc` integration test class: `auth/AuthControllerTest.java`.
+- [x] Add `@SpringBootTest` + `@AutoConfigureMockMvc` integration test class: `auth/AuthControllerTest.java`.
   - Happy path: `POST /api/auth/register` → `201` + token in body.
   - Duplicate email: `POST /api/auth/register` → `409 Conflict`.
   - Invalid payload: `POST /api/auth/register` with missing `email` → `400` + field error.
   - Login with wrong password → `401`.
-- [ ] Add `room/RoomControllerTest.java`:
+- [x] Add `room/RoomControllerTest.java`:
   - Create room as authenticated user → `201`.
   - List rooms → only returns rooms the user is a member of.
   - Unauthenticated request → `401`.
