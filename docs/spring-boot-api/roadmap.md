@@ -59,6 +59,8 @@ For side effects that must only fire after the database transaction commits (e.g
 
 ## Phase 2: Stateless Authentication & Integration (JWT)
 
+> Detailed iteration plan: [phase-2.md](./phase-2.md)
+
 * **Goal:** Bridge the Spring server and the Node WebSocket server securely.
 * **Tasks:**
   * Implement a `OncePerRequestFilter` in Spring to issue and validate JSON Web Tokens (JWTs) upon login.

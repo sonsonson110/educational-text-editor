@@ -29,3 +29,12 @@ spring:
 
 server:
   port: 8081
+
+# JWT configuration
+# Production: override `app.jwt.secret` via APP_JWT_SECRET environment variable.
+# The secret must be identical in the Node sync-server (Iteration 5).
+app:
+  jwt:
+    secret: XtVWcilMyRXDU/NTpTCsZp/V5yqM8Cv8BXNwnZ8fFyY=
+    expiration-ms: 3600000         # 1 hour for authenticated users
+    guest-expiration-ms: 86400000  # 24 hours for guest tokens

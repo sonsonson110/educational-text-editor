@@ -262,10 +262,10 @@ public List<RoomResponse> listRooms(Authentication authentication) {
 
 ## Definition of Done for Phase 1
 
-- [ ] App starts cleanly and connects to Postgres via `compose.yaml`.
-- [ ] Flyway migration runs on startup with no errors.
-- [ ] `POST /api/auth/register` and `POST /api/auth/login` return tokens.
-- [ ] Room endpoints return `401` for unauthenticated requests and `201`/`200` for authenticated ones.
-- [ ] `GlobalExceptionHandler` returns consistent `ErrorResponse` JSON for all error cases.
-- [ ] All integration tests pass (`./mvnw test`).
-- [ ] No business logic inside controllers — controllers only validate input, call a service, and map the result to a `ResponseEntity`.
+- [x] App starts cleanly and connects to Postgres via `compose.yaml`.
+- [x] Flyway migration runs on startup with no errors.
+- [x] `POST /api/auth/register` and `POST /api/auth/login` return tokens.
+- [x] Room endpoints return `401` for unauthenticated requests and `201`/`200` for authenticated ones.
+- [x] `GlobalExceptionHandler` returns consistent `ErrorResponse` JSON for all error cases.
+- [x] All integration tests pass (`./mvnw test`).
+- [x] No business logic inside controllers — controllers only validate input, call a service, and map the result to a `ResponseEntity`.
