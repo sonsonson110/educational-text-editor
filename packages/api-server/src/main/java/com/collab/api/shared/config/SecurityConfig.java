@@ -1,7 +1,6 @@
 package com.collab.api.shared.config;
 
-import com.collab.api.shared.security.BearerTokenFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import com.collab.api.shared.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,14 +17,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Central Spring Security configuration for the REST API.
  *
- * <p>Design goals for this baseline (Phase 1):
+ * <p>Design goals (Phase 2 — stateless JWT):
  * <ul>
  *   <li>Stateless session — no server-side session state; every request must
- *       carry its own credentials. This is the prerequisite for JWT in Phase 2.</li>
+ *       carry its own credentials in the {@code Authorization: Bearer} header.</li>
  *   <li>CSRF disabled — CSRF protection is only needed for cookie-based browser
  *       sessions. A stateless token API has no cookies to protect.</li>
- *   <li>Additive structure — Phase 2 will swap {@link BearerTokenFilter} for a
- *       {@code JwtAuthenticationFilter} at the same chain position.</li>
+ *   <li>No DB lookup per request — {@link JwtAuthenticationFilter} validates
+ *       the JWT cryptographically; it never hits the database.</li>
  * </ul>
  *
  * <p>{@code @EnableMethodSecurity} activates {@code @PreAuthorize} /
@@ -37,10 +36,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final BearerTokenFilter bearerTokenFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(BearerTokenFilter bearerTokenFilter) {
-        this.bearerTokenFilter = bearerTokenFilter;
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     /**
@@ -64,22 +63,21 @@ public class SecurityConfig {
                                 response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 )
 
-                // Phase 1: DB-backed UUID token filter.
-                // Phase 2: replace with .addFilterBefore(jwtFilter, ...)
-                .addFilterBefore(bearerTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     /**
-     * Prevents Spring Boot from auto-registering {@link BearerTokenFilter} in
-     * the servlet filter chain a second time (it is already registered inside
+     * Prevents Spring Boot from auto-registering {@link JwtAuthenticationFilter}
+     * in the servlet filter chain a second time (it is already registered inside
      * the Spring Security filter chain above).
      */
     @Bean
-    public FilterRegistrationBean<BearerTokenFilter> bearerTokenFilterRegistration() {
-        FilterRegistrationBean<BearerTokenFilter> registration =
-                new FilterRegistrationBean<>(bearerTokenFilter);
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<JwtAuthenticationFilter>
+            jwtAuthenticationFilterRegistration() {
+        var registration =
+                new org.springframework.boot.web.servlet.FilterRegistrationBean<>(jwtAuthenticationFilter);
         registration.setEnabled(false);
         return registration;
     }

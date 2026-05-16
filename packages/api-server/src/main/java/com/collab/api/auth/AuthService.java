@@ -5,6 +5,7 @@ import com.collab.api.auth.dto.LoginRequest;
 import com.collab.api.auth.dto.RegisterRequest;
 import com.collab.api.auth.event.UserRegisteredEvent;
 import com.collab.api.shared.exception.ApiException;
+import com.collab.api.shared.security.JwtService;
 import com.collab.api.user.User;
 import com.collab.api.user.UserRepository;
 import org.springframework.context.ApplicationEventPublisher;
@@ -13,8 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 /**
  * Handles user registration and login for the password-based auth flow.
  *
@@ -22,10 +21,6 @@ import java.util.UUID;
  * identity. Cross-cutting concerns (e.g., sending a welcome email) are handled
  * by separate listeners that subscribe to {@link UserRegisteredEvent} — this
  * service never imports or calls them directly.
- *
- * <p><b>Phase 2 note:</b> The temporary UUID token returned here will be
- * replaced by a signed JWT. Only this service and {@link AuthController} need
- * to change; all other layers remain unaffected.
  */
 @Service
 public class AuthService {
@@ -33,19 +28,25 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
+    private final JwtService jwtService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
+        this.jwtService = jwtService;
     }
 
     /**
-     * Registers a new user with a BCrypt-hashed password.
+     * Registers a new user with a BCrypt-hashed password and returns a signed JWT.
+     *
+     * <p>The JWT is generated after the entity is persisted so that the user's
+     * UUID (assigned by the DB) is available as the {@code sub} claim.
      *
      * <p>Publishes {@link UserRegisteredEvent} after the user is persisted so
      * that the database write and any side effects (email, audit) are decoupled.
@@ -58,18 +59,16 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Email already in use");
         }
 
-        // Phase 1: generate a plain UUID token stored in the DB.
-        // Phase 2: replace with JwtService.generateToken(user) — stateless, no DB column needed.
-        String token = UUID.randomUUID().toString();
-
         User user = User.builder()
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
-                .sessionToken(token)
                 .build();
 
         userRepository.save(user);
+
+        // Token is generated after save so user.getId() is populated.
+        String token = jwtService.generateToken(user);
 
         // Publish the event AFTER the entity is saved but still within the
         // transaction. Listeners using @TransactionalEventListener(AFTER_COMMIT)
@@ -80,14 +79,14 @@ public class AuthService {
     }
 
     /**
-     * Authenticates a user by verifying their BCrypt password hash.
+     * Authenticates a user by verifying their BCrypt password hash and returns
+     * a signed JWT. No database write is performed — the token is stateless.
      *
      * @throws ApiException {@code 401 UNAUTHORIZED} if credentials are invalid.
      *                      A generic message is used intentionally to avoid
      *                      leaking whether the email exists in the system.
      */
-    // login now writes (updates session token), so readOnly = false
-    @Transactional
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
@@ -96,11 +95,7 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
-        // Phase 1: rotate the session token on each login.
-        // Phase 2: replace with JwtService.generateToken(user) — no DB write needed.
-        String token = UUID.randomUUID().toString();
-        user.setSessionToken(token);
-        userRepository.save(user);
+        String token = jwtService.generateToken(user);
 
         return new AuthResponse(token, user.getId(), user.getDisplayName());
     }

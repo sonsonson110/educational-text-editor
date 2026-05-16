@@ -44,14 +44,6 @@ public class User {
     @Column
     private String passwordHash;
 
-    /**
-     * Phase-1 bearer token issued on register/login.
-     * Nullable — users who have never authenticated have no token.
-     * Replaced by a stateless JWT in Phase 2; this column will be dropped via a future migration.
-     */
-    @Column(unique = true)
-    private String sessionToken;
-
     @Column(nullable = false)
     private String displayName;
 
