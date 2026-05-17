@@ -1,0 +1,48 @@
+name: API Tests (Hurl)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  hurl-api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Start Spring Boot API Server
+        # Starts the app in the background. Spring Boot's docker-compose integration
+        # will automatically start PostgreSQL based on packages/api-server/compose.yaml.
+        run: |
+          cd packages/api-server
+          ./mvnw spring-boot:run &
+          echo "Waiting for API server to start..."
+          # Wait up to 60 seconds for the server to bind to port 8080
+          timeout 60 bash -c 'until nc -z localhost 8080; do sleep 1; done'
+          echo "API Server is up!"
+
+      - name: Install Hurl
+        run: |
+          curl -sSL https://hurl.dev/install.sh | bash
+          echo "$HOME/.hurl/bin" >> $GITHUB_PATH
+
+      - name: Run API Tests
+        run: npm run test:api
+
+      - name: Cleanup Docker resources
+        if: always()
+        run: |
+          cd packages/api-server
+          docker compose down -v
