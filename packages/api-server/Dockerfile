@@ -12,11 +12,10 @@ WORKDIR /app/packages/api-server
 
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
 
-# Copy source and build, skipping tests (tests run separately in CI)
-COPY packages/api-server/src packages/api-server/src
+# Copy source code - BEFORE changing directory for consistency
+COPY packages/api-server/src ./src
 
-WORKDIR /app/packages/api-server
-
+# Now build
 RUN ./mvnw package -DskipTests -B
 
 # Stage 2: minimal JRE runtime
