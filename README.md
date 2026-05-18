@@ -11,6 +11,7 @@ Live demo: <https://collab-text-editor.pson02.io.vn/>
 |---|---|
 | [`@myapp/client`](./packages/client) | Vite + React editor frontend |
 | [`@myapp/sync-server`](./packages/sync-server) | Collaboration server (Yjs WebSocket) |
+| [`api-server`](./packages/api-server) | Spring Boot REST API (auth, room management) |
 
 ## Getting Started
 
@@ -39,6 +40,7 @@ All secrets must be set in **Repository Settings → Secrets and Variables → A
 | `VM_SSH_HOST` | Cloudflare SSH hostname for the VM | `ssh.pson02.io.vn` |
 | `VM_USER` | SSH username on the VM | `ubuntu` |
 | `VM_SSH_KEY` | Private Ed25519 key for CI authentication (generate a dedicated key pair; add the public key to `~/.ssh/authorized_keys` on the VM) | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
+| `APP_JWT_SECRET` | Base64-encoded HMAC-SHA256 secret used to sign JWTs. Currently hard-coded in `application.yaml` — **override this in production** by setting the secret here and passing `APP_JWT_SECRET` as an environment variable to the `api-server` container in the deployment workflow. | `XtVWcilMyRXDU/NTpTCsZp/V5yqM8Cv8BXNwnZ8fFyY=` |
 
 ## Documentation
 

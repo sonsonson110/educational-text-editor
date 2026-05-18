@@ -1,6 +1,43 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: 'postgres:16'
+    environment:
+      - POSTGRES_DB=collab-editor
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=root
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - collab-net
+    deploy:
+      replicas: 1
+      placement:
+        # Pin to the manager so the named volume is always on the same node.
+        constraints:
+          - node.role == manager
+
+  api-server:
+    # IMAGE_PREFIX is set by the CI workflow to ghcr.io/<github-owner>.
+    # For manual deploys, export IMAGE_PREFIX before running docker stack deploy.
+    image: ${IMAGE_PREFIX}/collab-editor-api-server:latest
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/collab-editor
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DOCKER_COMPOSE_ENABLED=false
+      # Override the default hard-coded secret — set APP_JWT_SECRET on the VM
+      # or pass it via the CI deploy step (see .github/workflows/deploy.yml).
+      - APP_JWT_SECRET=${APP_JWT_SECRET}
+    networks:
+      - collab-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+
   client:
     # IMAGE_PREFIX is set by the CI workflow to ghcr.io/<github-owner>.
     # For manual deploys, export IMAGE_PREFIX before running docker stack deploy.
@@ -21,6 +58,9 @@ services:
       - collab-net
     deploy:
       replicas: 1
+
+volumes:
+  postgres-data:
 
 networks:
   collab-net:

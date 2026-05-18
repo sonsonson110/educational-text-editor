@@ -4,6 +4,8 @@ dist
 packages/*/dist
 build
 packages/*/build
+target
+packages/*/target
 .env
 .env.*
 !.env.example

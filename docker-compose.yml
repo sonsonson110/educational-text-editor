@@ -1,6 +1,35 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: 'postgres:16'
+    environment:
+      - POSTGRES_DB=collab-editor
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=root
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d collab-editor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api-server:
+    build:
+      context: .
+      dockerfile: packages/api-server/Dockerfile
+    environment:
+      # Override the localhost datasource URL from application.yaml
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/collab-editor
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+      # Disable the local-dev Docker Compose integration at runtime
+      - SPRING_DOCKER_COMPOSE_ENABLED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   sync-server:
     build:
       context: .
@@ -20,4 +49,5 @@ services:
       - "8080:80"
     depends_on:
       - sync-server
+      - api-server
     restart: unless-stopped
